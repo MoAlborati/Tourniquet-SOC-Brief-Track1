@@ -56,17 +56,31 @@ export function matchSignal(card) {
     const high = (card.sentinel?.severity || 0) >= 70 || card.sentinel?.blocked;
     const agent = card.sentinel?.agent || 'an AI agent';
     const tool = card.sentinel?.tool || 'a tool';
+    const why = [
+      card.sentinel?.narrative || 'The alert describes a tool call that left the agent session.',
+      card.sentinel?.technique ? `Framework tag: ${card.sentinel.technique} (${card.sentinel.techniqueId}).` : 'Tagged as an AI-agent detection.',
+      card.sentinel?.owasp?.length ? `OWASP: ${card.sentinel.owasp.join('; ')}.` : 'Review the MITRE ATLAS technique on the alert.',
+    ];
+    if (card.sentinel?.reportOnly) {
+      // Post-execution, report-only: nothing was stopped. Never tell the analyst the send was blocked.
+      return hit({
+        ruleId: 'sentinel-agent-report-only',
+        activity: 'ai_agent_exfil',
+        disposition: high ? 'escalate' : 'investigate',
+        priority: high ? 'P1' : 'P2',
+        headline: `${agent} sent data toward an outside destination. The guardrail detected it after the tool already ran.`,
+        why,
+        whatToDo: 'Detected after the tool already ran; treat the data as sent. Rotate exposed secrets and canaries, check the destination for what arrived, and investigate the session that issued the call.',
+        explain: `A hidden instruction steered ${agent} into calling ${tool}. The call carried data the agent had just read toward an outside destination. That is the agent version of data theft: untrusted text, private data, and a send button in the same turn. This alert is report-only: the proxy saw it after the tool already ran, so nothing was stopped. Treat the data as sent. This note describes the path; it does not repeat the payload.`,
+      });
+    }
     return hit({
       ruleId: 'sentinel-agent',
       activity: 'ai_agent_exfil',
       disposition: high ? 'escalate' : 'investigate',
       priority: high ? 'P1' : 'P2',
       headline: `${agent} tried to send data outside the company, and the guardrail ${card.sentinel?.blocked ? 'blocked it' : 'flagged it'}.`,
-      why: [
-        card.sentinel?.narrative || 'The alert describes a tool call that left the agent session.',
-        card.sentinel?.technique ? `Framework tag: ${card.sentinel.technique} (${card.sentinel.techniqueId}).` : 'Tagged as an AI-agent detection.',
-        card.sentinel?.owasp?.length ? `OWASP: ${card.sentinel.owasp.join('; ')}.` : 'Review the MITRE ATLAS technique on the alert.',
-      ],
+      why,
       whatToDo: 'Leave the block in place. Confirm the canary or sensitive fields never left the network, then rotate anything the agent was able to read.',
       explain: `A hidden instruction steered ${agent} into calling ${tool}. The call tried to carry data the agent had just read toward an outside destination. That is the agent version of data theft: untrusted text, private data, and a send button in the same turn. The proxy stopped the send. This note describes the path; it does not repeat the payload.`,
     });
@@ -336,6 +350,27 @@ export function matchSignal(card) {
       ],
       whatToDo: 'No action.',
       explain: 'Most mail is mail. The briefing stays quiet so the password lure and the disk-image invoice are the ones that stay on screen.',
+    });
+  }
+
+  // No local rule matched. Fall back on the vendor's own rating: Suricata priority 1, or a Wazuh rule
+  // level of 10 or more, is high enough that it should not wait in the monitor pile.
+  const suricataP1 = card.vendorPriority === 1;
+  const wazuhHigh = typeof card.vendorLevel === 'number' && card.vendorLevel >= 10;
+  if (suricataP1 || wazuhHigh) {
+    return hit({
+      ruleId: 'vendor-severity',
+      activity: 'unclassified',
+      disposition: 'investigate',
+      priority: 'P2',
+      headline: 'No local rule matched, but the vendor rated this alert high. A person should look at it today.',
+      why: [
+        'Reason: vendor severity (no rule matched).',
+        suricataP1 ? 'Suricata priority is 1, its highest.' : `Wazuh rule level is ${card.vendorLevel} (10 or more is high).`,
+        card.title ? `Vendor title: ${card.title}.` : 'No vendor title was parsed.',
+      ],
+      whatToDo: 'Read the alert and the hosts involved. If it is real, escalate it; if it is routine, add a local rule so it is classified next time.',
+      explain: 'The assistant has no local rule for this alert, so it uses the vendor\'s own rating. A high vendor rating is not proof of an attack, but it is enough to put the alert in front of an analyst instead of the watch list.',
     });
   }
 
