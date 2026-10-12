@@ -11,12 +11,12 @@
   "limitPerFile": null,
   "total": {
     "alerts": 2610277,
-    "unclassified": 2185505,
+    "unclassified": 2158765,
     "inWindow": 1752566,
-    "inWindowUnclassified": 1599545,
-    "phaseOk": 2566698,
-    "needsHumanIn": 146359,
-    "needsHumanOut": 10559,
+    "inWindowUnclassified": 1573007,
+    "phaseOk": 2610277,
+    "needsHumanIn": 172897,
+    "needsHumanOut": 10728,
     "vendorRaised": 10723,
     "inWindowVendorRaised": 164
   },
@@ -45,12 +45,12 @@
     },
     "aminer": {
       "alerts": 51502,
-      "unclassified": 51502,
+      "unclassified": 24762,
       "inWindow": 43579,
-      "inWindowUnclassified": 43579,
-      "phaseOk": 7923,
-      "needsHumanIn": 0,
-      "needsHumanOut": 0,
+      "inWindowUnclassified": 17041,
+      "phaseOk": 51502,
+      "needsHumanIn": 26538,
+      "needsHumanOut": 169,
       "vendorRaised": 0,
       "inWindowVendorRaised": 0
     }
@@ -58,12 +58,12 @@
   "byPhase": {
     "outside": {
       "alerts": 857711,
-      "unclassified": 585960,
+      "unclassified": 585758,
       "inWindow": 0,
       "inWindowUnclassified": 0,
       "phaseOk": 857711,
       "needsHumanIn": 0,
-      "needsHumanOut": 10559,
+      "needsHumanOut": 10728,
       "vendorRaised": 10559,
       "inWindowVendorRaised": 0
     },
@@ -72,7 +72,7 @@
       "unclassified": 4276,
       "inWindow": 7919,
       "inWindowUnclassified": 4276,
-      "phaseOk": 7892,
+      "phaseOk": 7919,
       "needsHumanIn": 64,
       "needsHumanOut": 0,
       "vendorRaised": 64,
@@ -83,7 +83,7 @@
       "unclassified": 1370,
       "inWindow": 1616,
       "inWindowUnclassified": 1370,
-      "phaseOk": 1562,
+      "phaseOk": 1616,
       "needsHumanIn": 15,
       "needsHumanOut": 0,
       "vendorRaised": 15,
@@ -91,88 +91,88 @@
     },
     "service_scans": {
       "alerts": 2213,
-      "unclassified": 1722,
+      "unclassified": 1637,
       "inWindow": 2213,
-      "inWindowUnclassified": 1722,
-      "phaseOk": 1601,
-      "needsHumanIn": 416,
+      "inWindowUnclassified": 1637,
+      "phaseOk": 2213,
+      "needsHumanIn": 501,
       "needsHumanOut": 0,
       "vendorRaised": 11,
       "inWindowVendorRaised": 11
     },
     "wpscan": {
       "alerts": 49250,
-      "unclassified": 25059,
+      "unclassified": 877,
       "inWindow": 49250,
-      "inWindowUnclassified": 25059,
-      "phaseOk": 24849,
-      "needsHumanIn": 24154,
+      "inWindowUnclassified": 877,
+      "phaseOk": 49250,
+      "needsHumanIn": 48336,
       "needsHumanOut": 0,
       "vendorRaised": 2,
       "inWindowVendorRaised": 2
     },
     "dirb": {
       "alerts": 1685619,
-      "unclassified": 1563400,
+      "unclassified": 1561171,
       "inWindow": 1685619,
-      "inWindowUnclassified": 1563400,
-      "phaseOk": 1667481,
-      "needsHumanIn": 121636,
+      "inWindowUnclassified": 1561171,
+      "phaseOk": 1685619,
+      "needsHumanIn": 123865,
       "needsHumanOut": 0,
       "vendorRaised": 14,
       "inWindowVendorRaised": 14
     },
     "cracking": {
       "alerts": 5383,
-      "unclassified": 3313,
+      "unclassified": 3307,
       "inWindow": 5383,
-      "inWindowUnclassified": 3313,
-      "phaseOk": 5261,
-      "needsHumanIn": 52,
+      "inWindowUnclassified": 3307,
+      "phaseOk": 5383,
+      "needsHumanIn": 58,
       "needsHumanOut": 0,
       "vendorRaised": 52,
       "inWindowVendorRaised": 52
     },
     "privilege_escalation": {
       "alerts": 328,
-      "unclassified": 229,
+      "unclassified": 225,
       "inWindow": 328,
-      "inWindowUnclassified": 229,
-      "phaseOk": 152,
-      "needsHumanIn": 17,
+      "inWindowUnclassified": 225,
+      "phaseOk": 328,
+      "needsHumanIn": 21,
       "needsHumanOut": 0,
       "vendorRaised": 1,
       "inWindowVendorRaised": 1
     },
     "service_stop": {
       "alerts": 19,
-      "unclassified": 19,
+      "unclassified": 12,
       "inWindow": 19,
-      "inWindowUnclassified": 19,
-      "phaseOk": 4,
-      "needsHumanIn": 0,
+      "inWindowUnclassified": 12,
+      "phaseOk": 19,
+      "needsHumanIn": 7,
       "needsHumanOut": 0,
       "vendorRaised": 0,
       "inWindowVendorRaised": 0
     },
     "webshell": {
       "alerts": 121,
-      "unclassified": 88,
+      "unclassified": 72,
       "inWindow": 121,
-      "inWindowUnclassified": 88,
-      "phaseOk": 105,
-      "needsHumanIn": 3,
+      "inWindowUnclassified": 72,
+      "phaseOk": 121,
+      "needsHumanIn": 19,
       "needsHumanOut": 0,
       "vendorRaised": 3,
       "inWindowVendorRaised": 3
     },
     "reverse_shell": {
       "alerts": 98,
-      "unclassified": 69,
+      "unclassified": 60,
       "inWindow": 98,
-      "inWindowUnclassified": 69,
-      "phaseOk": 80,
-      "needsHumanIn": 2,
+      "inWindowUnclassified": 60,
+      "phaseOk": 98,
+      "needsHumanIn": 11,
       "needsHumanOut": 0,
       "vendorRaised": 2,
       "inWindowVendorRaised": 2
@@ -200,16 +200,32 @@
       91752
     ],
     [
-      "aminer: AMiner alert",
-      51502
+      "aminer: AMiner: New characters in Apache Access request.",
+      10284
     ],
     [
       "wazuh: Multiple IDS alerts for same id.",
       6776
     ],
     [
+      "aminer: AMiner: New event type.",
+      5965
+    ],
+    [
       "wazuh: Multiple IDS events from same source ip.",
       2264
+    ],
+    [
+      "aminer: AMiner: New status code in Apache Access log.",
+      1975
+    ],
+    [
+      "aminer: AMiner: High entropy in DNS domain.",
+      1748
+    ],
+    [
+      "aminer: AMiner: New ip address in DNS logs.",
+      1541
     ],
     [
       "wazuh: Suspicious URL access.",
@@ -222,22 +238,6 @@
     [
       "wazuh: Apache: Attempt to access forbidden file or directory.",
       1212
-    ],
-    [
-      "wazuh: Common web attack.",
-      728
-    ],
-    [
-      "wazuh: First time this IDS alert is generated.",
-      510
-    ],
-    [
-      "suricata: Suricata: Alert - ET INFO Observed DNS Query to .cloud TLD",
-      455
-    ],
-    [
-      "wazuh: CMS (WordPress or Joomla) login attempt.",
-      381
     ]
   ],
   "topVendorRaised": [
