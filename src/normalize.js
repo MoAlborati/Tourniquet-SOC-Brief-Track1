@@ -12,6 +12,28 @@ function asList(value) {
   return Array.isArray(value) ? value.map(String) : [String(value)];
 }
 
+function first(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+// Real AIT-ADS AMiner lines nest their fields: AnalysisComponent.{AnalysisComponentName, ...},
+// LogData.{DetectionTimestamp: [epoch], Timestamps: [epoch], RawLogData: [line]}, AMiner.ID.
+// The curated rows in samples/curated.json are flattened to the top level. Read both.
+function aminerView(record) {
+  const component = record.AnalysisComponent || {};
+  const log = record.LogData || {};
+  return {
+    detected: first(log.DetectionTimestamp) ?? first(log.Timestamps)
+      ?? first(record.DetectionTimestamp) ?? record.epoch,
+    name: component.AnalysisComponentName || record.AnalysisComponentName || '',
+    type: component.AnalysisComponentType || record.AnalysisComponentType || '',
+    message: component.Message || record.Message || '',
+    values: asList(component.AffectedLogAtomValues),
+    raw: asList(log.RawLogData ?? record.RawLogData),
+    aminerId: record.AMiner?.ID ? String(record.AMiner.ID) : null,
+  };
+}
+
 function detectSource(record) {
   const schema = String(record.SchemaVersion || '');
   if (schema.startsWith('sentinel.alert')) return 'sentinel';
@@ -43,6 +65,22 @@ function blob(...parts) {
   return out.join('\n');
 }
 
+// Suricata's own priority (1 = highest). Wazuh-wrapped EVE puts it at data.alert.severity, raw EVE at
+// alert.severity, and fast.log / Wazuh full_log lines carry it as "[Priority: N]".
+function suricataPriority(record, text) {
+  const value = record.data?.alert?.severity ?? record.alert?.severity;
+  const direct = Number(value);
+  if (value != null && value !== '' && Number.isInteger(direct)) return direct;
+  const match = String(text).match(/\[Priority:\s*(\d+)\]/i);
+  return match ? Number(match[1]) : null;
+}
+
+// SentinelProxy writes the sink as `${type}:${destination}`. When the type is a URL scheme and the
+// destination is already a URL, that renders as "http:https://…". Show the URL once.
+function tidyNarrative(text) {
+  return String(text || '').replace(/\b(?:https?):(?=https?:\/\/)/gi, '');
+}
+
 function sentinelView(record) {
   const owasp = []
     .concat(record.OwaspLlm || [], record.OwaspAgentic || [])
@@ -57,7 +95,12 @@ function sentinelView(record) {
     owasp,
     blocked: Boolean(record.PatternDispositionFlags?.Blocked),
     disposition: record.PatternDispositionDescription || '',
-    narrative: record.CaseCard?.Narrative || record.DetectDescription || '',
+    narrative: tidyNarrative(record.CaseCard?.Narrative || record.DetectDescription || ''),
+    // Report-only: the proxy saw it after the tool already ran (e.g. outcome
+    // reply_delivered_tool_already_executed). A Blocked flag always wins.
+    reportOnly: !record.PatternDispositionFlags?.Blocked && (
+      record.PatternDispositionFlags?.ReportOnly === true
+      || /already[_ ]executed|alert[_ -]only/i.test(String(record.CaseCard?.Narrative || ''))),
     agent: record.Entities?.Agent?.Name || '',
     tool: record.Entities?.ToolCall?.Name || '',
     sink: record.Entities?.Sink?.Destination || '',
@@ -78,6 +121,7 @@ export function normalize(item, windows) {
   let dst = null;
   let ruleId = null;
   let vendorLevel = null;
+  let vendorPriority = null;
   let groups = [];
   let email = null;
   let sentinel = null;
@@ -113,19 +157,13 @@ export function normalize(item, windows) {
     host = email.from;
     text = blob(email.from, email.subject, email.body, email.attachment);
   } else if (source === 'aminer') {
-    epoch = epochFrom(record.DetectionTimestamp ?? record.epoch);
+    const view = aminerView(record);
+    epoch = epochFrom(view.detected);
     timestamp = epoch == null ? null : new Date(epoch * 1000).toISOString();
-    title = record.AnalysisComponentName || 'AMiner alert';
-    host = record.host || null;
-    text = blob(
-      record.AnalysisComponentName,
-      record.AnalysisComponentType,
-      record.Message,
-      record.RawLogData,
-      record.note,
-    );
-    const raw = String(record.RawLogData || '');
-    const from = raw.match(/\bfrom\s+(\d{1,3}(?:\.\d{1,3}){3})/);
+    title = view.name || 'AMiner alert';
+    host = record.host || view.aminerId || null;
+    text = blob(view.name, view.type, view.message, view.values, view.raw, record.note);
+    const from = view.raw.join('\n').match(/\bfrom\s+(\d{1,3}(?:\.\d{1,3}){3})/);
     if (from) src = from[1];
   } else {
     timestamp = record['@timestamp'] || record.timestamp || null;
@@ -139,6 +177,7 @@ export function normalize(item, windows) {
     src = record.srcip || record.data?.src_ip || null;
     dst = record.data?.dest_ip || null;
     text = blob(rule.description, groups, record.full_log, record.data, record.note);
+    vendorPriority = suricataPriority(record, text);
   }
 
   const phase = scenario ? phaseAt(windows, scenario, epoch) : null;
@@ -160,6 +199,7 @@ export function normalize(item, windows) {
     dst,
     ruleId,
     vendorLevel,
+    vendorPriority,
     groups,
     email,
     sentinel,
