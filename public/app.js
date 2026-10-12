@@ -140,55 +140,9 @@ function rowButton(row, model) {
   button.type = 'button';
   button.setAttribute('aria-pressed', row.id === selected ? 'true' : 'false');
 
-  const top = el('div', 'card-top');
-  top.append(el('span', `verdict ${verdict}`, verdict));
-  top.append(el('span', `pchip ${priority}`, priority));
-  const scoreWrap = el('div', 'score-wrap');
-  scoreWrap.append(el('span', 'score-num', String(score)));
-  const bar = el('div', `score-bar ${priority}`);
-  const fill = el('i');
-  fill.style.width = `${score}%`;
-  bar.append(fill);
-  bar.setAttribute('role', 'img');
-  bar.setAttribute('aria-label', `threat score ${score} of 100`);
-  scoreWrap.append(bar);
-  top.append(scoreWrap);
-  button.append(top);
-
+  button.append(el('span', 'caret', '▸'));
   button.append(el('span', 'card-title', briefing.headline));
-  const meta = [sourceLabel(row), row.phase ? row.phase.replaceAll('_', ' ') : 'outside attack windows', when(row)]
-    .filter(Boolean)
-    .join(' · ');
-  button.append(el('span', 'card-meta', meta));
-
-  // Hashtag tags.
-  const tags = tagsOf(row, briefing, model);
-  if (tags.length) {
-    const tagline = el('div', 'tagline');
-    const who = `#${decidedByOf(briefing, model)}`;
-    for (const t of tags) {
-      const isWho = t.toLowerCase() === who.toLowerCase();
-      tagline.append(el('span', `htag${isWho ? ' who' : ''}`, t));
-    }
-    button.append(tagline);
-  }
-
-  // "Why we think so" — inline, not collapsed.
-  const why = Array.isArray(briefing.why) ? briefing.why.filter(Boolean) : [];
-  const bullets = Array.isArray(briefing.bullets) ? briefing.bullets.filter(Boolean) : [];
-  const reasons = why.length ? why : bullets;
-  if (reasons.length || briefing.verification?.note) {
-    const box = el('div', 'why-inline');
-    box.append(el('span', 'why-label', 'Why we think so'));
-    if (reasons.length) {
-      const ul = document.createElement('ul');
-      for (const r of reasons.slice(0, 3)) ul.append(el('li', null, r));
-      box.append(ul);
-    }
-    if (briefing.verification?.note) box.append(el('p', 'vendor-note', briefing.verification.note));
-    button.append(box);
-  }
-
+  button.append(el('span', `verdict ${verdict}`, verdict));
   button.addEventListener('click', () => selectRow(row));
   return button;
 }
