@@ -396,3 +396,10 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   gap: 8px;
   padding: 0 10px 10px 18px;
 }
+
+/* Simple collapsible-style queue rows (match screenshot) */
+.row { display:flex; align-items:center; gap:8px; width:100%; }
+.row .caret { display:inline-block; margin-right:2px; opacity:.45; transition:transform .12s ease; }
+.row.on .caret { transform:rotate(90deg); opacity:.9; }
+.row .card-title { flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; }
+.row .verdict { flex:0 0 auto; }
