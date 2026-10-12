@@ -1,6 +1,6 @@
 # SOC Brief: Track 1 submission (AI for SOC Analyst)
 
-> **Draft for @shrutidoshi94 to edit.** Built from `track1/README.md`, `ATTRIBUTION.md`, `src/`, and the output of `npm run eval` on `main` (a37e430). Change anything that doesn't match how you want to present it.
+> Track 1 lead: @shrutidoshi94. Built from `track1/README.md`, `ATTRIBUTION.md`, `src/`, the output of `npm run eval`, and the held-out eval in `eval-heldout/`, all on `main` (72c459f, after #99, #101, and #107). Change anything that doesn't match how you want to present it.
 
 ## Pitch
 
@@ -56,7 +56,7 @@ The full license, citation, and redaction notes are in **[ATTRIBUTION.md](ATTRIB
 
 ## Evaluation
 
-Output of `npm run eval` on `main` (a37e430):
+Output of `npm run eval` on `main` (72c459f):
 
 ```
 cases 17
@@ -72,22 +72,24 @@ How to read these numbers:
 - **Disposition and activity at 17/17 are in-sample consistency, not accuracy.** The expected values in `samples/curated.json` were written by hand alongside the rules in `src/signals.js`. The score shows that the rules and the answer key agree. It doesn't show how the rules perform on alerts they weren't written against.
 - **The "phase 17/17" line counts 4 non-AIT items (email, SentinelProxy) whose expected phase is simply empty.** The meaningful number is the 13/13 above.
 - **No disposition ground truth exists.** AIT-ADS labels time windows, not per-alert verdicts, so we do not claim a disposition accuracy.
-- **Held-out run on unseen alerts (PR #101, `track1/eval-heldout/`).** On 15 alerts the rules were not written against (13 verbatim AIT-ADS alerts from the non-curated scenarios, plus the 2 Suricata cases below), phase against `labels.csv` is **12/13**, and **10/15 (67%) fall through to `unclassified`**. Over all 2,610,277 alerts in those scenarios, **83.7% are unclassified**. Phase labelling is 100% for Wazuh and Suricata rows, but **0/43,579 for real AMiner alerts inside a window**: real AMiner records nest their timestamp and log fields, and `src/normalize.js` reads them at the top level.
+- **Held-out run on unseen alerts (PR #101, `track1/eval-heldout/RESULTS.md`).** On 15 alerts the rules were not written against (13 verbatim AIT-ADS alerts from the 7 non-curated scenarios, plus the 2 Suricata cases below), phase against `labels.csv` is **13/13**, and **9/15 (60%) match no local rule** (`unclassified`). Over all 2,610,277 alerts in those scenarios, **82.7% match no local rule**. Phase is now correct for every Wazuh, Suricata, and AMiner row; before the AMiner fix (#107), real AMiner alerts got no phase (0/43,579 in-window).
 
-### Known misses
+### Known misses, and what changed
 
-Alerts that no rule in `src/signals.js` matches fall through to **monitor / P3 "unclassified"**, even when the vendor rates them as the most severe. Two examples, checked on `main` (a37e430):
+Before #99, alerts that no rule matched fell through to **monitor / P3 "unclassified"**, even when the vendor rated them most severe. #99 added a vendor-severity fallback: when no local rule matches, Suricata priority 1 or a Wazuh rule level of 10 or more comes out **investigate / P2**, with the reason "vendor severity (no rule matched)". The model can raise that, never lower it. The category alone (trojan, attack, and so on) does not raise an alert. The two advisor cases, checked on `main` (72c459f):
 
-| Input | Vendor rating | SOC Brief |
-|---|---|---|
-| Suricata `ET MALWARE Cobalt Strike Beacon Observed` (A Network Trojan was detected) | Priority 1 | monitor / P3, `unclassified` |
-| Suricata `ET WEB_SERVER SQL Injection UNION SELECT` (Web Application Attack) | Priority 1 | monitor / P3, `unclassified` |
+| Input | Vendor rating | Before #99 | Now |
+|---|---|---|---|
+| Suricata `ET MALWARE Cobalt Strike Beacon Observed` (A Network Trojan was detected) | Priority 1 | monitor / P3, `unclassified` | investigate / P2, `vendor-severity` |
+| Suricata `ET WEB_SERVER SQL Injection UNION SELECT` (Web Application Attack) | Priority 1 | monitor / P3, `unclassified` | investigate / P2, `vendor-severity` |
 
-The card stays in the queue, so the alert is not auto-closed, but it is under-prioritized. The planned fix is a vendor-severity fallback in the `unclassified` branch: return investigate / P2 when Suricata reports `Priority: 1` or `alert.severity == 1`, when the category matches trojan, attack, malware, or exploit, or when Wazuh `rule.level >= 10`.
+Both are unit tests in `test/fallback.test.js`. They are hand-written in the AIT shape, so they are not part of any accuracy number.
+
+The fallback has a cost. On the full held-out data it raises 10,723 alerts; 10,559 of them fall outside every labeled window. Most are Wazuh level-10 correlation rules (`Multiple IDS alerts for same id.` and similar).
 
 ## Cross-track bridge
 
-SOC Brief triages **SentinelProxy (Track 3) alerts** in the same queue as IDS alerts and email. `samples/sentinel-sample-alert.json` and `sentinel-case.json` use the Track 3 alert shape (MITRE ATLAS technique, OWASP LLM category, block or allow). In the eval, the sample agent-exfiltration alert (`sample-0001`) is briefed as `ai_agent_exfil` and escalated. The Track 3 proxy blocks the action, and SOC Brief explains it to the analyst who has to follow up.
+SOC Brief triages **SentinelProxy (Track 3) alerts** in the same queue as IDS alerts and email. `samples/sentinel-sample-alert.json` and `sentinel-case.json` use the Track 3 alert shape (MITRE ATLAS technique, OWASP LLM category, block or allow). In the eval, the sample agent-exfiltration alert (`sample-0001`) is briefed as `ai_agent_exfil` and escalated. In that sample the Track 3 proxy blocked the action, and SOC Brief explains it to the analyst who has to follow up. A report-only SentinelProxy alert (the tool already ran) is briefed differently: the card says the data should be treated as sent and never says the proxy stopped it. A flagged alert that was not blocked says it was flagged, not blocked.
 
 ## Limitations
 
@@ -95,10 +97,11 @@ These come from the review of PR #79.
 
 1. **Model output has no grounding citations.** The prompt says "Facts you may use, and nothing else," but nothing checks that the model's `summary` or `why` items cite a field from those facts. A planned fix is an `evidence` list of alert IDs or fact keys, with uncited items dropped.
 2. **The prompt cap truncates silently.** `cardForPrompt` cuts `card.text` to 4,000 characters with no marker, and email bodies are bounded only by the 64 KB request limit. Today's largest prompt is about 4.6k characters, so the samples aren't affected, but full-dataset alerts could be. A planned fix is a "[truncated N chars]" marker, a cap on `email.body`, and a `prompt_over_budget` fallback that is logged instead of a silent slice.
-3. **The 17-case eval is in-sample, and rule coverage on unseen data is low.** See "Evaluation". On the full non-curated AIT-ADS data, 83.7% of alerts match no rule, and real AMiner alerts get no phase (PR #101).
-4. **Unmatched high-severity alerts are under-prioritized.** See "Known misses". Cobalt Strike and SQL injection UNION SELECT alerts at vendor Priority 1 come back as monitor / P3 "unclassified".
-5. **Only one prompt is sent to the model.** `src/chain.js` sends the triage prompt. The summarize and explain prompts are built and shown on the card, but they are never sent.
-6. **The model path is optional and lightly tested.** The tests mock the completer and cover the disposition floor. No live-model run is part of the scored eval.
+3. **The 17-case eval is in-sample, and rule coverage on unseen data is low.** See "Evaluation". On the full non-curated AIT-ADS data, 82.7% of alerts match no local rule (PR #101).
+4. **Unmatched alerts rely on the vendor's rating.** See "Known misses". With no local rule, a vendor Priority 1 or Wazuh level 10+ alert becomes investigate / P2 and anything lower stays monitor / P3. That raises 10,723 alerts on the held-out data, 10,559 of them outside any labeled window.
+5. **No grouping of repeated alerts.** After the AMiner fix (#107), 26,538 of 43,579 in-window AMiner alerts go to a human. 24,095 of them are one title (`New request method in Apache Access log.`) from a single wpscan burst. They are inside the labeled attack window, but the queue shows each as its own card. Grouping by rule, source, and window is not built.
+6. **Only one prompt is sent to the model.** `src/chain.js` sends the triage prompt. The summarize and explain prompts are built and shown on the card, but they are never sent.
+7. **The model path is optional and lightly tested.** The tests mock the completer and cover the disposition floor. No live-model run is part of the scored eval.
 
 ## Team
 

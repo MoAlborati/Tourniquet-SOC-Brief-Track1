@@ -37,6 +37,7 @@ const windows = loadWindows();
 const blank = () => ({ alerts: 0, unclassified: 0, inWindow: 0, inWindowUnclassified: 0, phaseOk: 0, needsHumanIn: 0, needsHumanOut: 0, vendorRaised: 0, inWindowVendorRaised: 0 });
 const bySource = {};
 const byPhase = {};
+const aminerByPhase = {};
 const unclassifiedTitles = new Map();
 const vendorRaisedTitles = new Map();
 
@@ -55,7 +56,9 @@ for (const scenario of SCENARIOS) {
       const b = brief(card);
       const s = (bySource[card.source] ||= blank());
       const p = (byPhase[truth || 'outside'] ||= blank());
-      for (const bucket of [s, p]) {
+      const buckets = [s, p];
+      if (card.source === 'aminer') buckets.push(aminerByPhase[truth || 'outside'] ||= blank());
+      for (const bucket of buckets) {
         bucket.alerts += 1;
         if ((card.phase || null) === (truth || null)) bucket.phaseOk += 1;
         const nh = b.disposition === 'escalate' || b.disposition === 'investigate';
@@ -88,4 +91,4 @@ const total = Object.values(bySource).reduce((acc, s) => {
 }, blank());
 const top = [...unclassifiedTitles.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
 const topVendor = [...vendorRaisedTitles.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
-console.log(JSON.stringify({ scenarios: SCENARIOS, limitPerFile: limit === Infinity ? null : limit, total, bySource, byPhase, topUnclassified: top, topVendorRaised: topVendor }, null, 2));
+console.log(JSON.stringify({ scenarios: SCENARIOS, limitPerFile: limit === Infinity ? null : limit, total, bySource, byPhase, aminerByPhase, topUnclassified: top, topVendorRaised: topVendor }, null, 2));
