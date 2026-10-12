@@ -1,6 +1,6 @@
 # SOC Brief: Track 1 submission (AI for SOC Analyst)
 
-> **Draft for @shrutidoshi94 to edit.** Built from `track1/README.md`, `ATTRIBUTION.md`, `src/`, and the output of `npm run eval` on `main` (fe81735). Change anything that doesn't match how you want to present it.
+> **Draft for @shrutidoshi94 to edit.** Built from `track1/README.md`, `ATTRIBUTION.md`, `src/`, and the output of `npm run eval` on `main` (a37e430). Change anything that doesn't match how you want to present it.
 
 ## Pitch
 
@@ -35,7 +35,7 @@ cp .env.example .env
 npm start
 ```
 
-"Ask a model" runs a three-step prompt chain: summarize, triage, explain. `LLM_BASE_URL` and `LLM_MODEL` can point it at any OpenAI-compatible endpoint. The default model is `gpt-4o-mini`.
+"Ask a model" sends **one** request to the model: the triage prompt. `src/prompts.js` also builds a summarize prompt and an explain prompt, and the card displays all three for inspection, but `src/chain.js` sends only `prompts.triage`. The summarize and explain prompts are never sent. `LLM_BASE_URL` and `LLM_MODEL` can point it at any OpenAI-compatible endpoint. The default model is `gpt-4o-mini`.
 
 ## Data and attribution
 
@@ -56,7 +56,7 @@ The full license, citation, and redaction notes are in **[ATTRIBUTION.md](ATTRIB
 
 ## Evaluation
 
-Output of `npm run eval` on `main`:
+Output of `npm run eval` on `main` (a37e430):
 
 ```
 cases 17
@@ -69,8 +69,21 @@ needs-human precision 1 recall 1
 How to read these numbers:
 
 - **Attack-phase accuracy against `labels.csv`: 13/13 AIT alerts** (the other 4 cases are email and SentinelProxy items, which have no phase). This is the only score checked against independent ground truth. It shows that the loader maps each alert's timestamp to the correct `labels.csv` window, including the rule that a timestamp on a shared boundary stays with the earlier phase. It is a lookup check, not a detection score. A time window doesn't mean every alert inside it is malicious, so the phase is shown as context on the card and doesn't set the disposition.
-- **Disposition and activity at 17/17 measure in-sample consistency, not accuracy.** The expected values in `samples/curated.json` were written by hand alongside the rules in `src/signals.js`. The score shows that the rules and the answer key agree. It doesn't show how the rules perform on alerts they weren't written against.
-- **No held-out evaluation exists yet.** `eval-report.mjs` scores only the 17 curated cases. A held-out score over the full AIT-ADS archive (inside a labeled window counts as malicious) is the obvious next step.
+- **Disposition and activity at 17/17 are in-sample consistency, not accuracy.** The expected values in `samples/curated.json` were written by hand alongside the rules in `src/signals.js`. The score shows that the rules and the answer key agree. It doesn't show how the rules perform on alerts they weren't written against.
+- **The "phase 17/17" line counts 4 non-AIT items (email, SentinelProxy) whose expected phase is simply empty.** The meaningful number is the 13/13 above.
+- **No disposition ground truth exists.** AIT-ADS labels time windows, not per-alert verdicts, so we do not claim a disposition accuracy.
+- **A held-out run on unseen alerts is in a separate PR** (`track1/eval-heldout/`, see #68). It reports how many unseen alerts fall through to `unclassified`.
+
+### Known misses
+
+Alerts that no rule in `src/signals.js` matches fall through to **monitor / P3 "unclassified"**, even when the vendor rates them as the most severe. Two examples, checked on `main` (a37e430):
+
+| Input | Vendor rating | SOC Brief |
+|---|---|---|
+| Suricata `ET MALWARE Cobalt Strike Beacon Observed` (A Network Trojan was detected) | Priority 1 | monitor / P3, `unclassified` |
+| Suricata `ET WEB_SERVER SQL Injection UNION SELECT` (Web Application Attack) | Priority 1 | monitor / P3, `unclassified` |
+
+The card stays in the queue, so the alert is not auto-closed, but it is under-prioritized. The planned fix is a vendor-severity fallback in the `unclassified` branch: return investigate / P2 when Suricata reports `Priority: 1` or `alert.severity == 1`, when the category matches trojan, attack, malware, or exploit, or when Wazuh `rule.level >= 10`.
 
 ## Cross-track bridge
 
@@ -82,8 +95,10 @@ These come from the review of PR #79.
 
 1. **Model output has no grounding citations.** The prompt says "Facts you may use, and nothing else," but nothing checks that the model's `summary` or `why` items cite a field from those facts. A planned fix is an `evidence` list of alert IDs or fact keys, with uncited items dropped.
 2. **The prompt cap truncates silently.** `cardForPrompt` cuts `card.text` to 4,000 characters with no marker, and email bodies are bounded only by the 64 KB request limit. Today's largest prompt is about 4.6k characters, so the samples aren't affected, but full-dataset alerts could be. A planned fix is a "[truncated N chars]" marker, a cap on `email.body`, and a `prompt_over_budget` fallback that is logged instead of a silent slice.
-3. **The eval is in-sample.** See "Evaluation". There are 17 curated cases, and there is no held-out or data-rich run yet.
-4. **The model path is optional and lightly tested.** The tests mock the completer and cover the disposition floor. No live-model run is part of the scored eval.
+3. **The eval is in-sample.** See "Evaluation". The 17 curated cases were written alongside the rules. The held-out run is in a separate PR.
+4. **Unmatched high-severity alerts are under-prioritized.** See "Known misses". Cobalt Strike and SQL injection UNION SELECT alerts at vendor Priority 1 come back as monitor / P3 "unclassified".
+5. **Only one prompt is sent to the model.** `src/chain.js` sends the triage prompt. The summarize and explain prompts are built and shown on the card, but they are never sent.
+6. **The model path is optional and lightly tested.** The tests mock the completer and cover the disposition floor. No live-model run is part of the scored eval.
 
 ## Team
 
