@@ -27,31 +27,23 @@ export function loadEnvFile(path, env = process.env) {
   return env;
 }
 
-export const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
-export const DEFAULT_MODEL = 'openrouter/free';
-
 export function readConfig(env = process.env) {
   return {
-    apiKey: env.OPENROUTER_API_KEY || env.LLM_API_KEY || env.OPENAI_API_KEY || '',
-    baseUrl: String(env.LLM_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, ''),
-    model: env.LLM_MODEL || DEFAULT_MODEL,
+    apiKey: env.OPENAI_API_KEY || env.LLM_API_KEY || '',
+    baseUrl: String(env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
+    model: env.LLM_MODEL || 'gpt-4o-mini',
   };
 }
 
 export function createCompleter(config, fetchImpl = globalThis.fetch) {
   if (!config?.apiKey) return null;
   return async function complete({ system, user }) {
-    const headers = {
-      'content-type': 'application/json',
-      authorization: `Bearer ${config.apiKey}`,
-    };
-    if (config.baseUrl.includes('openrouter.ai')) {
-      headers['http-referer'] = 'http://127.0.0.1:8787';
-      headers['x-title'] = 'SOC Brief';
-    }
     const response = await fetchImpl(`${config.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers,
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${config.apiKey}`,
+      },
       body: JSON.stringify({
         model: config.model,
         temperature: 0,

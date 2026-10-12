@@ -12,10 +12,19 @@ export async function runChain(card, { complete, relatedCount = 0 } = {}) {
     };
   }
 
-  const review = draft.caught === false ? prompts.cover : prompts.verify;
+  if (prompts.triage.oversize) {
+    // Fail loud, never send a prompt a model would silently cut.
+    console.error(`[soc-brief] triage prompt for ${card.id} is ${prompts.triage.chars} chars, over the cap; not sent`);
+    return {
+      briefing: draft,
+      model: { status: 'fallback', reason: 'prompt over cap' },
+      prompts,
+    };
+  }
+
   let raw;
   try {
-    raw = await complete(review);
+    raw = await complete(prompts.triage);
   } catch {
     return {
       briefing: draft,

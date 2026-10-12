@@ -63,16 +63,6 @@ export function buildPrompts(card, draft, { nonce = randomBytes(8).toString('hex
       system: SYSTEM_N,
       user: `${shared}\n\nTask: fill "explain" with what this behavior means in plain English, including what it is not. Do not decode redacted parameters. Return the JSON object.`,
     },
-    verify: {
-      purpose: 'verify',
-      system: SYSTEM,
-      user: `${shared}\n\nTask: re-check the built-in rule's claim against the alert text. If the rule is right, keep its disposition. If the alert is more serious than the rule says, raise the disposition. You must not lower it. Do not repeat exploit steps or decode redacted fields. Return the JSON object, and include "agrees": true when the rule's disposition should stand.`,
-    },
-    cover: {
-      purpose: 'cover',
-      system: `${SYSTEM}\nNo built-in rule classified this alert. You are the classifier for this one case.`,
-      user: `${shared}\n\nTask: classify this alert because no built-in rule matched it. Describe what a new analyst should do. Do not give exploit steps or decode redacted fields.\nIf draft.ruleId is "unclassified", you choose the disposition.\nIf draft.ruleId is "vendor-severity", you may keep or raise the disposition, and you must not lower it.\nReturn the JSON object.`,
-    },
   };
   for (const prompt of Object.values(built)) {
     prompt.chars = prompt.system.length + prompt.user.length;
@@ -122,32 +112,16 @@ export function applyModel(draft, parsed) {
     ? parsed.why.map((item) => cleanText(item, 240)).filter(Boolean).slice(0, 5)
     : null;
 
-  const modelDecides = draft.caught === false && draft.ruleId === 'unclassified';
   let guard = null;
   let disposition = draft.disposition;
   let priority = draft.priority;
-  if (modelDecides) {
-    disposition = parsed.disposition;
-    priority = parsed.priority;
-    guard = 'model_decided';
-  } else if (dispositionRank(parsed.disposition) > dispositionRank(draft.disposition)) {
+  if (dispositionRank(parsed.disposition) > dispositionRank(draft.disposition)) {
     disposition = parsed.disposition;
     priority = parsed.priority;
     guard = 'raised';
   } else if (dispositionRank(parsed.disposition) < dispositionRank(draft.disposition)) {
     guard = 'disposition_floor';
-  } else {
-    guard = 'agreed';
   }
-
-  const note = {
-    agreed: 'The model re-checked the built-in rule and agreed.',
-    raised: 'The model re-checked the built-in rule and raised the verdict.',
-    disposition_floor: draft.caught === false
-      ? 'The model reviewed this unmatched alert and tried to lower it. The vendor rating holds.'
-      : 'The model disagreed, and the built-in rule was kept. A rule verdict cannot be lowered.',
-    model_decided: 'No built-in rule matched. The model classified this alert.',
-  }[guard];
 
   return {
     ...draft,
@@ -159,10 +133,5 @@ export function applyModel(draft, parsed) {
     disposition,
     priority,
     model: guard,
-    verification: {
-      by: modelDecides ? 'model' : 'rule+model',
-      status: guard,
-      note,
-    },
   };
 }
