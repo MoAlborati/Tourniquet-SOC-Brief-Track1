@@ -4,7 +4,7 @@ import { extname, join, relative, sep } from 'node:path';
 import { buildQueue } from './src/cases.js';
 import { runChain } from './src/chain.js';
 import { evaluate, formatReport } from './src/evaluate.js';
-import { completerFromEnv } from './src/llm.js';
+import { completerFromEnv, loadEnvFile, readConfig } from './src/llm.js';
 import { normalize as normalizeAlert } from './src/normalize.js';
 import { root } from './src/paths.js';
 
@@ -92,7 +92,7 @@ async function readBody(req) {
   }
 }
 
-export function createApp({ queue = buildQueue(), complete = null } = {}) {
+export function createApp({ queue = buildQueue(), complete = null, modelName = null } = {}) {
   const byId = new Map(queue.map((item) => [item.card.id, item]));
   const report = evaluate(queue);
 
@@ -102,7 +102,7 @@ export function createApp({ queue = buildQueue(), complete = null } = {}) {
       const path = url.pathname;
 
       if (req.method === 'GET' && path === '/api/health') {
-        send(res, 200, { ok: true, model: typeof complete === 'function', cases: queue.length });
+        send(res, 200, { ok: true, model: typeof complete === 'function', modelName, cases: queue.length });
         return;
       }
       if (req.method === 'GET' && path === '/api/queue') {
@@ -198,8 +198,13 @@ function safePublicFile(urlPath) {
 export function start(options = {}) {
   const port = Number(options.port || process.env.TRACK1_PORT || 8787);
   const host = '127.0.0.1';
+  const config = readConfig(loadEnvFile(join(root, '.env'), process.env));
   const complete = options.complete === undefined ? completerFromEnv(root) : options.complete;
-  const app = createApp({ complete, queue: options.queue });
+  const app = createApp({
+    complete,
+    queue: options.queue,
+    modelName: options.complete === undefined ? config.model : null,
+  });
   const server = createServer((req, res) => {
     Promise.resolve(app(req, res)).catch(() => {
       if (!res.headersSent) send(res, 500, { error: 'server error' });

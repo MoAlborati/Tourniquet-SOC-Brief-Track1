@@ -8,7 +8,7 @@ Three kinds of item sit in the same queue:
 - **SentinelProxy agent alerts** (the Track 3 shape: MITRE ATLAS, OWASP LLM, block or allow).
 - **Email**, including a password lure and a disk-image attachment.
 
-The briefing is deterministic, so the demo runs with no API key. If `OPENAI_API_KEY` or `LLM_API_KEY` is set, "Ask a model" sends one prompt to the model: the triage prompt. The summarize and explain prompts are built and shown under "Prompt chain" for inspection, but they are not sent to the model. The model may rewrite the wording. It cannot lower the disposition. If the reply is not the expected JSON, the screen keeps the offline briefing and does not show the raw reply.
+The briefing is deterministic, so the demo runs with no API key. To re-check alerts, put a free OpenRouter key in `OPENROUTER_API_KEY`. The default model is `openrouter/free`, which sends each check to one of OpenRouter's free models. A built-in rule is re-checked: the model may agree or raise the verdict, and it cannot lower it. An alert no rule recognized is classified by the model instead. The summarize, triage, and explain prompts stay in the prompt chain for inspection. If the reply is not the expected JSON, the screen keeps the offline briefing and does not show the raw reply.
 
 ## Run
 
@@ -27,7 +27,7 @@ cp .env.example .env
 # put the key in .env
 ```
 
-`LLM_BASE_URL` and `LLM_MODEL` override the OpenAI-compatible endpoint. The default model name is `gpt-4o-mini`.
+`LLM_BASE_URL` and `LLM_MODEL` override the endpoint. The default is OpenRouter at `https://openrouter.ai/api/v1` with model `openrouter/free`.
 
 ## What the score means
 
@@ -37,7 +37,7 @@ cp .env.example .env
 - **Disposition** — escalate, investigate, monitor, or dismiss.
 - **Needs a human** — escalate and investigate count as a page. Precision and recall are on that split.
 
-When no local rule matches, the briefing falls back on the vendor's own rating: Suricata priority 1, or a Wazuh rule level of 10 or more, becomes investigate/P2 with the reason "vendor severity (no rule matched)". Anything lower stays monitor/P3. The model can raise that, never lower it.
+When no local rule matches, the briefing falls back on the vendor's own rating: Suricata priority 1, or a Wazuh rule level of 10 or more, becomes investigate/P2 with the reason "vendor severity (no rule matched)". Anything lower stays monitor/P3 until a model classifies it. The model can raise a high vendor rating, and it cannot lower that one. It can set any verdict on a plain unmatched alert.
 
 Time windows are not per-alert guilt. A ClamAV update during a quiet hour is still a ClamAV update. The phase is context on the card. The disposition comes from what the log says.
 

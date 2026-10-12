@@ -24,16 +24,16 @@ function suricata(id, signature, category, severity) {
   }, windows);
 }
 
-test('Suricata Cobalt Strike beacon, vendor Priority 1, comes out investigate/P2', () => {
+test('Suricata Cobalt Strike beacon is a built-in escalate, not a vendor fallback', () => {
   const card = suricata('adv-cobalt', 'ET MALWARE Cobalt Strike Beacon Observed', 'A Network Trojan was detected', 1);
   const b = brief(card);
-  assert.equal(b.disposition, 'investigate');
-  assert.equal(b.priority, 'P2');
-  assert.equal(b.ruleId, 'vendor-severity');
-  assert.ok(b.why.includes('Reason: vendor severity (no rule matched).'));
+  assert.equal(b.disposition, 'escalate');
+  assert.equal(b.priority, 'P1');
+  assert.equal(b.ruleId, 'malware-beacon');
+  assert.equal(b.caught, true);
 });
 
-test('Suricata SQL Injection UNION SELECT, vendor Priority 1 in a fast.log line, comes out investigate/P2', () => {
+test('Suricata SQL Injection UNION SELECT is a built-in web-attack escalate', () => {
   const card = normalize({
     id: 'adv-sqli',
     record: {
@@ -44,9 +44,10 @@ test('Suricata SQL Injection UNION SELECT, vendor Priority 1 in a fast.log line,
   }, windows);
   assert.equal(card.vendorPriority, 1);
   const b = brief(card);
-  assert.equal(b.disposition, 'investigate');
-  assert.equal(b.priority, 'P2');
-  assert.ok(b.why.includes('Reason: vendor severity (no rule matched).'));
+  assert.equal(b.disposition, 'escalate');
+  assert.equal(b.priority, 'P1');
+  assert.equal(b.ruleId, 'web-attack');
+  assert.equal(b.caught, true);
 });
 
 test('lower vendor ratings keep the old monitor/P3 behavior', () => {
@@ -70,7 +71,7 @@ test('Wazuh rule level 10 or more with no rule match comes out investigate/P2', 
 });
 
 test('a model reply cannot lower the vendor-severity fallback', async () => {
-  const card = suricata('adv-cobalt-model', 'ET MALWARE Cobalt Strike Beacon Observed', 'A Network Trojan was detected', 1);
+  const card = suricata('adv-unknown-high', 'ET POLICY Unrecognized High Severity Event', 'Misc activity', 1);
   const complete = async () => JSON.stringify({ disposition: 'dismiss', priority: 'P4', headline: 'fine', summary: 'fine', why: ['x'], whatToDo: 'none' });
   const out = await runChain(card, { complete });
   assert.equal(out.model.status, 'model');

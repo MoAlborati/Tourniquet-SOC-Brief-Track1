@@ -12,9 +12,10 @@ export async function runChain(card, { complete, relatedCount = 0 } = {}) {
     };
   }
 
+  const review = draft.caught === false ? prompts.cover : prompts.verify;
   let raw;
   try {
-    raw = await complete(prompts.triage);
+    raw = await complete(review);
   } catch {
     return {
       briefing: draft,

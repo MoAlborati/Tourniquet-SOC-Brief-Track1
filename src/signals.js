@@ -41,6 +41,7 @@ function hit(fields) {
     whatToDo: fields.whatToDo,
     explain: fields.explain,
     ruleId: fields.ruleId,
+    caught: fields.caught !== false,
   };
 }
 
@@ -120,6 +121,56 @@ export function matchSignal(card) {
       ],
       whatToDo: 'Quarantine the message. If anyone opened the link or entered a password, reset that account and check sign-in logs. Do not visit the link.',
       explain: 'The message creates a deadline and then asks for a password on a site the company does not own. That is credential phishing. The goal is the password itself. Reporting it and resetting any account that touched the link is the whole response.',
+    });
+  }
+
+  if (mail && /\.(html?|svg)$/.test(String(card.email.attachment || '').toLowerCase())) {
+    return hit({
+      ruleId: 'html-attachment',
+      activity: 'html_lure',
+      disposition: 'investigate',
+      priority: 'P2',
+      headline: 'This email attaches a web page. Opening it can send the reader to a fake login.',
+      why: [
+        `Attachment: ${card.email.attachment}.`,
+        'HTML and SVG files can load a remote page as soon as they are opened.',
+        `Sender: ${card.email.from}.`,
+      ],
+      whatToDo: 'Do not open the attachment. Quarantine the message and check whether anyone already did.',
+      explain: 'A webpage attached to mail is a common stand-in for a link. The file itself is the lure. Quarantine it and let the mailbox team see who else received the same file.',
+    });
+  }
+
+  if (mail && !mail.trusted && /gift cards?|wire transfer|bank details (?:have )?changed|updated payment details/.test(text)) {
+    return hit({
+      ruleId: 'payment-fraud',
+      activity: 'payment_fraud',
+      disposition: 'investigate',
+      priority: 'P2',
+      headline: 'An outside sender is asking for a payment change or a gift card.',
+      why: [
+        `Sender domain: ${mail.fromDomain || 'unknown'}.`,
+        'The message asks for money or a change of bank details.',
+        'It does not come from a trusted company domain.',
+      ],
+      whatToDo: 'Do not pay or change any account. Confirm the request with the person by a channel you already use, not by replying to this message.',
+      explain: 'Payment-change and gift-card requests are business email fraud. The safe check is a phone call or a known chat, not the address on this message.',
+    });
+  }
+
+  if (mail && mail.linkHosts.some((host) => host.startsWith('xn--'))) {
+    return hit({
+      ruleId: 'lookalike-link',
+      activity: 'lookalike_link',
+      disposition: 'investigate',
+      priority: 'P2',
+      headline: 'A link in this email uses an internationalized name that can look like a real domain.',
+      why: [
+        `Link host: ${mail.linkHosts.join(', ')}.`,
+        'Names that start with xn-- are punycode. They can be drawn to resemble a company domain.',
+      ],
+      whatToDo: 'Do not open the link. Compare the host with the real site by typing the address yourself.',
+      explain: 'The visible letters can match a brand while the actual host is different. Treat the link as untrusted until someone checks the host by hand.',
     });
   }
 
@@ -270,6 +321,141 @@ export function matchSignal(card) {
     });
   }
 
+  if (/multiple authentication failures|brute force|password crack|hashcat|john the ripper/.test(text)) {
+    return hit({
+      ruleId: 'password-guessing',
+      activity: 'password_guessing',
+      disposition: 'investigate',
+      priority: 'P2',
+      headline: 'Many failed logins arrived together. That is password guessing, not a typo.',
+      why: [
+        'The log describes a burst of failures, or names a password-cracking tool.',
+        'One mistyped password is a different rule. This one is the repeated kind.',
+        `Host: ${hostOf(card)}.`,
+      ],
+      whatToDo: 'See whether a success followed the failures. If it did, reset that account. If it did not, block or rate-limit the source.',
+      explain: 'A person mistypes once. A guessing run fails many times, quickly, often against more than one account. Check for a success right after the burst before you close it.',
+    });
+  }
+
+  if (/\/dev\/tcp\/|reverse shell/.test(text)) {
+    return hit({
+      ruleId: 'reverse-shell',
+      activity: 'reverse_shell',
+      disposition: 'escalate',
+      priority: 'P1',
+      headline: 'A process on this host opened a shell back to another machine.',
+      why: [
+        'The log shows a shell tied to a network connection.',
+        'That gives someone outside a live command line on the host.',
+        `Host: ${hostOf(card)}.`,
+      ],
+      whatToDo: 'Isolate the host, record the running processes and connections, and block the remote address.',
+      explain: 'A reverse shell is a live command line that calls out, so an inbound firewall does not stop it. Contain the host. Do not re-run the command that showed up in the log.',
+    });
+  }
+
+  if (/cobalt strike|meterpreter|c2 beacon|beacon activity/.test(text)) {
+    return hit({
+      ruleId: 'malware-beacon',
+      activity: 'malware_beacon',
+      disposition: 'escalate',
+      priority: 'P1',
+      headline: 'The network sensor named a remote-access beacon on this host.',
+      why: [
+        'The signature names a known remote-control tool, not a generic scan.',
+        'A beacon means the host may already be taking instructions from outside.',
+        `Source: ${card.src || 'see the log'}.`,
+      ],
+      whatToDo: 'Isolate the host and preserve memory if the team can. Block the remote address. Do not interact with the beacon.',
+      explain: 'A beacon is a program that calls home so someone else can steer the machine. The sensor already named it. The response is containment, not a closer look at the payload.',
+    });
+  }
+
+  if (/\bunion select\b|sql injection\b|<script\b|path traversal|\.\.\/|\.\.\\/.test(text)) {
+    return hit({
+      ruleId: 'web-attack',
+      activity: 'web_attack',
+      disposition: 'escalate',
+      priority: 'P1',
+      headline: 'A web request tried to make the server do something a normal page view does not.',
+      why: [
+        'The log matches a database probe, a script tag, or a path that walks out of the web folder.',
+        'That is an attack against the site, not a broken link.',
+        `Source: ${card.src || 'see the log'}. Target: ${hostOf(card)}.`,
+      ],
+      whatToDo: 'Block the source, check whether the request got a normal success response, and have the site owner confirm the input was rejected.',
+      explain: 'The request is trying to read data or files the page should not return. You do not need to replay it. Check the response code and contain the source address.',
+    });
+  }
+
+  if (/dnsteal|dns tunnel|dns exfil/.test(text)) {
+    return hit({
+      ruleId: 'dns-exfil',
+      activity: 'dns_exfil',
+      disposition: 'escalate',
+      priority: 'P1',
+      headline: 'DNS lookups on this host look like data being smuggled out in the names.',
+      why: [
+        'The log names a DNS tunnel or DNS exfiltration tool.',
+        'DNS is allowed on most networks, so stolen data is sometimes hidden in lookup names.',
+        `Host: ${hostOf(card)}.`,
+      ],
+      whatToDo: 'Find the internal host making the lookups, block the destination name at the resolver, and see what data that host could read.',
+      explain: 'Normal DNS names are short and readable. A tunnel uses the lookup itself to carry data out. Block the destination and find the process that asked.',
+    });
+  }
+
+  if (/encodedcommand|-enc\s+[a-z0-9+/=]{16,}/.test(text)) {
+    return hit({
+      ruleId: 'encoded-command',
+      activity: 'encoded_command',
+      disposition: 'escalate',
+      priority: 'P1',
+      headline: 'A command on this host was hidden inside an encoded blob.',
+      why: [
+        'The log shows a command launcher with an encoded argument.',
+        'Administrators rarely hide routine commands this way.',
+        `Host: ${hostOf(card)}.`,
+      ],
+      whatToDo: 'Isolate the host and identify the parent process. Do not decode and run the blob on a workstation.',
+      explain: 'Encoding is how a launcher hides the real command from a quick reading of the log. Treat the host as suspect. Leave decoding to a malware sandbox, not to the analyst machine.',
+    });
+  }
+
+  if (/useradd |new user |account created|net user \S+ \/add/.test(text)) {
+    return hit({
+      ruleId: 'new-account',
+      activity: 'new_account',
+      disposition: 'investigate',
+      priority: 'P2',
+      headline: 'A new local account appeared.',
+      why: [
+        'The log records an account being created.',
+        'An unplanned account is a common way to keep access after the first break-in.',
+        `Host: ${hostOf(card)}.`,
+      ],
+      whatToDo: 'Ask the host owner whether they created it. If they did not, disable the account and look at what created it.',
+      explain: 'A new account is not proof of an attack, and it is also how an attacker stays on a machine. Confirm it with the owner before you close the alert.',
+    });
+  }
+
+  if (/crontab|schtasks|scheduled task/.test(text)) {
+    return hit({
+      ruleId: 'persistence',
+      activity: 'persistence',
+      disposition: 'investigate',
+      priority: 'P2',
+      headline: 'Something added or changed a scheduled task.',
+      why: [
+        'Scheduled tasks run again after a reboot, which is how a foothold survives cleanup.',
+        `Host: ${hostOf(card)}.`,
+      ],
+      whatToDo: 'Compare the task with the host’s change record. If nobody planned it, disable the task and see which user created it.',
+      explain: 'A scheduled task is ordinary for backups and updates. An unexpected one is a way for a program to start itself later. Verify the owner, then disable it if the owner does not recognize it.',
+    });
+  }
+
   if (/authentication failure|invalid user login|auth failed|login failed/.test(text)) {
     return hit({
       ruleId: 'auth-failure',
@@ -372,7 +558,8 @@ export function matchSignal(card) {
         card.title ? `Vendor title: ${card.title}.` : 'No vendor title was parsed.',
       ],
       whatToDo: 'Read the alert and the hosts involved. If it is real, escalate it; if it is routine, add a local rule so it is classified next time.',
-      explain: 'The assistant has no local rule for this alert, so it uses the vendor\'s own rating. A high vendor rating is not proof of an attack, but it is enough to put the alert in front of an analyst instead of the watch list.',
+      explain: 'The assistant has no local rule for this alert, so it uses the vendor\'s own rating. A high vendor rating is not proof of an attack, but it is enough to put the alert in front of an analyst instead of the watch list. A model may raise this verdict. It may not lower it.',
+      caught: false,
     });
   }
 
@@ -387,6 +574,178 @@ export function matchSignal(card) {
       'Unmatched alerts stay visible so a new pattern is not auto-closed.',
     ],
     whatToDo: 'Read the log line. If it is routine, add a dismiss rule later. Do not ignore a burst of the same unmatched alert.',
-    explain: 'The assistant only closes alerts it recognizes. Everything else waits for an analyst.',
+    explain: 'The assistant only closes alerts it recognizes. Everything else waits for an analyst, or for the model when one is configured.',
+    caught: false,
   });
+}
+
+function clip(value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  if (/^[A-Za-z0-9+/=_-]{24,}$/.test(text)) return '[encoded value, not shown]';
+  return text.length > 160 ? `${text.slice(0, 157)}…` : text;
+}
+
+function around(text, pattern) {
+  const raw = String(text || '');
+  const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`);
+  const match = re.exec(raw);
+  if (!match) return '';
+  const token = match[0];
+  if (token.length > 40 && /^[A-Za-z0-9+/=_-]+$/.test(token)) {
+    const lead = raw.slice(Math.max(0, match.index - 28), match.index).replace(/\s+/g, ' ').trim();
+    return clip(`${lead} [encoded value, not shown]`.trim());
+  }
+  const start = Math.max(0, match.index - 36);
+  const end = Math.min(raw.length, match.index + Math.min(token.length, 72) + 36);
+  let slice = raw.slice(start, end).replace(/\s+/g, ' ').trim();
+  if (start > 0) slice = `…${slice}`;
+  if (end < raw.length) slice = `${slice}…`;
+  return clip(slice);
+}
+
+const QUOTES = {
+  'sentinel-agent': [
+    { field: 'Agent', read: (card) => card.sentinel?.agent },
+    { field: 'Tool call', read: (card) => card.sentinel?.tool },
+    { field: 'Guardrail outcome', read: (card) => (card.sentinel?.blocked ? 'blocked the send' : 'flagged the call and did not block it') },
+    { field: 'Narrative', read: (card) => card.sentinel?.narrative },
+  ],
+  'sentinel-agent-report-only': [
+    { field: 'Agent', read: (card) => card.sentinel?.agent },
+    { field: 'Tool call', read: (card) => card.sentinel?.tool },
+    { field: 'Guardrail outcome', read: () => 'report-only: the tool already ran' },
+    { field: 'Narrative', read: (card) => card.sentinel?.narrative },
+  ],
+  'malware-lure': [
+    { field: 'Attachment', read: (card) => card.email?.attachment },
+    { field: 'Sender', read: (card) => card.email?.from },
+    { field: 'Matched wording', pattern: /enable content|enable macros|\.(?:iso|img|exe|scr|js|vbs|hta|docm|xlsm|lnk)\b/i },
+  ],
+  'phishing-credential': [
+    { field: 'Sender', read: (card) => card.email?.from },
+    { field: 'Link', pattern: /https?:\/\/\S+/i },
+    { field: 'Ask', pattern: /password|passcode|verify your|sign in|credentials/i },
+  ],
+  'html-attachment': [
+    { field: 'Attachment', read: (card) => card.email?.attachment },
+    { field: 'Sender', read: (card) => card.email?.from },
+  ],
+  'payment-fraud': [
+    { field: 'Sender', read: (card) => card.email?.from },
+    { field: 'Payment wording', pattern: /gift cards?|wire transfer|bank details|payment details/i },
+  ],
+  'lookalike-link': [
+    { field: 'Link host', pattern: /https?:\/\/\S+/i },
+  ],
+  'webshell-upload': [
+    { field: 'Request path', pattern: /\/wp-content\/uploads\/\S+/i },
+    { field: 'Source address', read: (card) => card.src },
+  ],
+  'su-www-data': [
+    { field: 'Identity switch', pattern: /successful su for\s+\S+\s+by www-data/i },
+    { field: 'Host', read: (card) => card.host },
+  ],
+  'sudo-from-webroot': [
+    { field: 'Working directory', pattern: /wp-content|uploads/i },
+    { field: 'Host', read: (card) => card.host },
+  ],
+  wpscan: [
+    { field: 'Scanner name', pattern: /wpscan\S*/i },
+    { field: 'Source address', read: (card) => card.src },
+  ],
+  nmap: [
+    { field: 'Scanner name', pattern: /nmap[^.\n]*/i },
+    { field: 'Target', read: (card) => card.host },
+  ],
+  'version-bind': [
+    { field: 'DNS query', pattern: /version\.bind/i },
+    { field: 'Source address', read: (card) => card.src },
+  ],
+  'ssh-scan': [
+    { field: 'sshd note', pattern: /did not receive identification string|insecure connection attempt \(scan\)/i },
+    { field: 'Source address', read: (card) => card.src },
+  ],
+  'dir-bust': [
+    { field: 'Guessed path', pattern: /\/\.hta\b|\/\.htaccess\b|\/\.htpasswd\b/i },
+    { field: 'Source address', read: (card) => card.src },
+  ],
+  'service-stop': [
+    { field: 'Service event', pattern: /service_stop|unit=put/i },
+    { field: 'Host', read: (card) => card.host },
+  ],
+  'password-guessing': [
+    { field: 'Failure burst', pattern: /multiple authentication failures|brute force|hashcat|john the ripper/i },
+    { field: 'Host', read: (card) => card.host },
+  ],
+  'reverse-shell': [
+    { field: 'Shell wording', pattern: /reverse shell|\/dev\/tcp\//i },
+    { field: 'Host', read: (card) => card.host },
+  ],
+  'malware-beacon': [
+    { field: 'Signature', pattern: /cobalt strike|meterpreter|c2 beacon|beacon activity/i },
+    { field: 'Source address', read: (card) => card.src },
+  ],
+  'web-attack': [
+    { field: 'Request clue', pattern: /union select|sql injection|<script|\.\.\/|\.\.\\/i },
+    { field: 'Source address', read: (card) => card.src },
+  ],
+  'dns-exfil': [
+    { field: 'DNS clue', pattern: /dnsteal|dns tunnel|dns exfil/i },
+    { field: 'Host', read: (card) => card.host },
+  ],
+  'encoded-command': [
+    { field: 'Launcher', pattern: /encodedcommand|-enc\s+[a-z0-9+/=]{8,}/i },
+    { field: 'Host', read: (card) => card.host },
+  ],
+  'new-account': [
+    { field: 'Account event', pattern: /useradd |new user |account created|net user \S+ \/add/i },
+    { field: 'Host', read: (card) => card.host },
+  ],
+  persistence: [
+    { field: 'Task event', pattern: /crontab|schtasks|scheduled task/i },
+    { field: 'Host', read: (card) => card.host },
+  ],
+  'auth-failure': [
+    { field: 'Login line', pattern: /authentication failure|invalid user login|auth failed|login failed/i },
+    { field: 'Host', read: (card) => card.host },
+  ],
+  'clamav-update': [
+    { field: 'Maintenance line', pattern: /clamav[^\n.]{0,40}|freshclam[^\n.]{0,40}/i },
+  ],
+  'policy-noise': [
+    { field: 'Sensor label', pattern: /not suspicious traffic|package management/i },
+  ],
+  'auth-success': [
+    { field: 'Login line', pattern: /authentication success|imap-login: login:|login session opened/i },
+    { field: 'Host', read: (card) => card.host },
+  ],
+  'benign-mail': [
+    { field: 'Sender', read: (card) => card.email?.from },
+    { field: 'Subject', read: (card) => card.email?.subject },
+  ],
+  'vendor-severity': [
+    { field: 'Vendor title', read: (card) => card.title },
+    { field: 'Vendor level', read: (card) => (card.vendorLevel == null ? '' : String(card.vendorLevel)) },
+    { field: 'Vendor priority', read: (card) => (card.vendorPriority == null ? '' : String(card.vendorPriority)) },
+  ],
+  unclassified: [
+    { field: 'Vendor title', read: (card) => card.title },
+    { field: 'Vendor level', read: (card) => (card.vendorLevel == null ? '' : String(card.vendorLevel)) },
+  ],
+};
+
+export function collectEvidence(card, ruleId) {
+  const spec = QUOTES[ruleId] || QUOTES.unclassified;
+  const rows = [];
+  for (const item of spec) {
+    const excerpt = item.read ? clip(item.read(card)) : around(card.text, item.pattern);
+    if (!excerpt) continue;
+    rows.push({ field: item.field, excerpt });
+  }
+  if (/REDACTED/i.test(card.text || '') && !rows.some((row) => /REDACTED/i.test(row.excerpt))) {
+    const redacted = around(card.text, /\[?REDACTED[^\s\]]*/i);
+    if (redacted) rows.push({ field: 'Redacted field', excerpt: redacted });
+  }
+  return rows.slice(0, 5);
 }
