@@ -15,6 +15,7 @@ const DISPOSITION_TEXT = {
 };
 
 let rows = [];
+let openIndex = null;
 
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -75,17 +76,20 @@ function renderQueue() {
   queueStateEl.hidden = true;
   rows.forEach((row, index) => {
     const key = dispositionKey(row.briefing);
-    const item = el('li', { class: key, role: 'option', tabindex: '0', 'aria-selected': 'false', 'data-index': String(index) },
-      el('div', { class: 'row-title' }, row.title || row.briefing?.headline || row.id),
-      el('div', { class: 'row-meta' },
-        el('span', { class: 'tag' }, phaseText(row.phase)),
-        el('span', { class: 'tag' }, row.family || row.source || 'alert'),
+    const open = index === openIndex;
+    const item = el('li', { class: key, 'data-index': String(index) },
+      el('button', {
+        class: 'alert-toggle',
+        type: 'button',
+        'aria-expanded': open ? 'true' : 'false',
+      },
+        el('span', { class: 'chevron', 'aria-hidden': 'true' }, open ? '▾' : '▸'),
+        el('span', { class: 'row-title' }, row.title || row.briefing?.headline || row.id),
         el('span', { class: `tag ${key}` }, dispositionLabel(row.briefing)),
       ),
     );
-    item.addEventListener('click', () => select(index));
-    item.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(index); }
+    item.querySelector('button').addEventListener('click', () => select(index));
+    item.querySelector('button').addEventListener('keydown', (event) => {
       if (event.key === 'ArrowDown') { event.preventDefault(); focusRow(index + 1); }
       if (event.key === 'ArrowUp') { event.preventDefault(); focusRow(index - 1); }
     });
@@ -95,15 +99,24 @@ function renderQueue() {
 
 function focusRow(index) {
   const item = queueEl.children[Math.max(0, Math.min(rows.length - 1, index))];
-  if (item) item.focus();
+  const button = item?.querySelector('button');
+  if (button) button.focus();
+}
+
+function showClosed() {
+  briefingEl.replaceChildren(el('p', { class: 'state' }, 'Open an alert to read its briefing.'));
 }
 
 function select(index) {
-  for (const item of queueEl.children) {
-    item.setAttribute('aria-selected', item.dataset.index === String(index) ? 'true' : 'false');
+  if (openIndex === index) {
+    openIndex = null;
+    renderQueue();
+    showClosed();
+    return;
   }
-  const row = rows[index];
-  renderBriefing(row.briefing, row);
+  openIndex = index;
+  renderQueue();
+  renderBriefing(rows[index].briefing, rows[index]);
 }
 
 function modelNote(model) {
@@ -137,24 +150,38 @@ function renderBriefing(briefing, context = {}) {
     ['When', context.timestamp ?? briefing.timestamp],
   ];
 
+  const folds = [];
+  if (briefing.summary) {
+    folds.push(fold('Summary', el('p', { class: 'summary' }, briefing.summary)));
+  }
+  if (why.length) {
+    folds.push(fold('Why we think so', el('ul', { class: 'why' }, why.map((line) => el('li', {}, line)))));
+  }
+  if (todo.length) {
+    const body = todo.length === 1
+      ? el('p', { class: 'todo' }, todo[0])
+      : el('ol', { class: 'todo' }, todo.map((line) => el('li', {}, line)));
+    folds.push(fold('What to do', body));
+  }
+  folds.push(fold('Details', el('dl', { class: 'facts' }, facts.map(([label, value]) => el('div', {}, el('dt', {}, label), el('dd', {}, fmt(value)))))));
+  const note = modelNote(context.model ?? briefing.model);
+  if (note) folds.push(fold('How this was written', el('p', { class: 'model-note' }, note)));
+
   briefingEl.replaceChildren(
     el('div', { class: `verdict ${key}` },
       el('span', { class: 'big' }, briefing.disposition ? disp.label : 'Unknown'),
       el('span', { class: 'hint' }, disp.hint),
     ),
     el('h2', { class: 'headline' }, briefing.headline || context.title || 'Untitled alert'),
-    el('p', { class: 'summary' }, briefing.summary || ''),
-    why.length ? el('h3', { class: 'section-label' }, 'Why we think so') : null,
-    why.length ? el('ul', { class: 'why' }, why.map((line) => el('li', {}, line))) : null,
-    todo.length ? el('h3', { class: 'section-label' }, 'What to do') : null,
-    todo.length === 1
-      ? el('p', { class: 'todo' }, todo[0])
-      : todo.length ? el('ol', { class: 'todo' }, todo.map((line) => el('li', {}, line))) : null,
-    el('h3', { class: 'section-label' }, 'Details'),
-    el('dl', { class: 'facts' }, facts.map(([label, value]) => el('div', {}, el('dt', {}, label), el('dd', {}, fmt(value))))),
+    ...folds,
   );
-  const note = modelNote(context.model ?? briefing.model);
-  if (note) briefingEl.append(el('p', { class: 'model-note' }, note));
+}
+
+function fold(title, body) {
+  return el('details', { class: 'fold' },
+    el('summary', {}, title),
+    body,
+  );
 }
 
 function ratio(part) {
@@ -184,8 +211,9 @@ async function loadQueue() {
   try {
     const data = await getJson('/api/queue');
     rows = Array.isArray(data) ? data : [];
+    openIndex = null;
     renderQueue();
-    if (rows.length) select(0);
+    showClosed();
   } catch (err) {
     rows = [];
     queueEl.replaceChildren();
@@ -221,7 +249,8 @@ pasteForm.addEventListener('submit', async (event) => {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    for (const item of queueEl.children) item.setAttribute('aria-selected', 'false');
+    openIndex = null;
+    renderQueue();
     renderBriefing(data.briefing, { model: data.model ?? null, title: 'Pasted email' });
     pasteState.textContent = 'Briefing shown above.';
     briefingEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
