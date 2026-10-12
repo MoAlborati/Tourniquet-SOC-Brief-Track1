@@ -1,5 +1,5 @@
 import { phaseLabel } from './labels.js';
-import { matchSignal } from './signals.js';
+import { collectEvidence, matchSignal } from './signals.js';
 
 export function phaseNote(card) {
   if (!card.scenario) {
@@ -21,6 +21,24 @@ export function brief(card, { relatedCount = 0 } = {}) {
   const summary = [signal.headline, signal.explain, phaseNote(card), relatedNote]
     .filter(Boolean)
     .join(' ');
+  const caught = signal.caught !== false;
+  const verification = caught
+    ? {
+      by: 'rules',
+      status: 'rule',
+      note: 'Built-in rule. A configured model re-checks this claim and cannot lower the verdict.',
+    }
+    : signal.ruleId === 'vendor-severity'
+      ? {
+        by: 'none',
+        status: 'unreviewed',
+        note: 'No local rule matched. The vendor rated it high, so the verdict stays at least investigate. A model can raise it and cannot lower it.',
+      }
+      : {
+        by: 'none',
+        status: 'unreviewed',
+        note: 'No built-in rule matched. A configured model classifies this alert. Until then it stays on the watch list.',
+      };
   return {
     activity: signal.activity,
     disposition: signal.disposition,
@@ -30,9 +48,13 @@ export function brief(card, { relatedCount = 0 } = {}) {
     why: signal.why.filter(Boolean),
     whatToDo: signal.whatToDo,
     explain: signal.explain,
+    lesson: signal.explain,
+    evidence: collectEvidence(card, signal.ruleId),
     phaseNote: phaseNote(card),
     relatedNote,
     ruleId: signal.ruleId,
+    caught,
     model: null,
+    verification,
   };
 }

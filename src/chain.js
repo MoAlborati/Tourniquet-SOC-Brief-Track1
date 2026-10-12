@@ -12,19 +12,19 @@ export async function runChain(card, { complete, relatedCount = 0 } = {}) {
     };
   }
 
-  if (prompts.triage.oversize) {
-    // Fail loud, never send a prompt a model would silently cut.
-    console.error(`[soc-brief] triage prompt for ${card.id} is ${prompts.triage.chars} chars, over the cap; not sent`);
+  const review = draft.caught === false ? prompts.cover : prompts.verify;
+  // Fail loud, never silently: a prompt over the cap is never sent. The offline
+  // deterministic briefing stands on its own.
+  if (review.oversize) {
     return {
       briefing: draft,
       model: { status: 'fallback', reason: 'prompt over cap' },
       prompts,
     };
   }
-
   let raw;
   try {
-    raw = await complete(prompts.triage);
+    raw = await complete(review);
   } catch {
     return {
       briefing: draft,

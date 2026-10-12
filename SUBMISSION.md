@@ -75,6 +75,7 @@ How to read these numbers:
 - **The "phase 17/17" line counts 4 non-AIT items (email, Tourniquet) whose expected phase is simply empty.** The meaningful number is the 13/13 above.
 - **No disposition ground truth exists.** AIT-ADS labels time windows, not per-alert verdicts, so we do not claim a disposition accuracy.
 - **Held-out run on unseen alerts (PR #101, `eval-heldout/RESULTS.md`).** On 15 alerts the rules were not written against (13 verbatim AIT-ADS alerts from the 7 non-curated scenarios, plus the 2 Suricata cases below), phase against `labels.csv` is **13/13**, and **9/15 (60%) match no local rule** (`unclassified`). Over all 2,610,277 alerts in those scenarios, **82.7% match no local rule**. Phase is now correct for every Wazuh, Suricata, and AMiner row; before the AMiner fix (#107), real AMiner alerts got no phase (0/43,579 in-window).
+- **These numbers are rule-descriptive coverage over all 2,610,277 alerts, not a tuned ML macro-F1.** Every figure above describes how deterministic rules read the full dataset; nothing is a trained-classifier score tuned to a leaderboard metric. That is a deliberate design choice — a rule-driven verdict is deterministic, auditable, and reproducible, and an analyst can read exactly why each alert got its disposition.
 
 ### Known misses, and what changed
 
