@@ -55,10 +55,10 @@ const RULES = [
       const base = 'Text the agent read from an untrusted document steered it into reading sensitive data and posting it outside. This is prompt injection leading to data theft through the agent’s own tools.';
       if (card.sentinel?.blocked) return `${base} The proxy stopped the send before it left.`;
       if (card.sentinel?.reportOnly) return `${base} The proxy saw this after the tool had already run, so the data was sent; it did not block it.`;
-      return `${base} SentinelProxy flagged it but did not block it.`;
+      return `${base} Tourniquet flagged it but did not block it.`;
     },
     why: (card) => [
-      card.sentinel?.severityName ? `SentinelProxy rated it ${card.sentinel.severityName}.` : '',
+      card.sentinel?.severityName ? `Tourniquet rated it ${card.sentinel.severityName}.` : '',
       card.sentinel?.sink ? `Data was headed toward ${card.sentinel.sink}.` : '',
       card.sentinel?.owasp?.length ? `Maps to ${card.sentinel.owasp.slice(0, 3).join(', ')}.` : '',
       card.sentinel?.canary
@@ -76,7 +76,7 @@ const RULES = [
     activity: 'agent_alert',
     disposition: 'investigate',
     test: (card) => card.family === 'sentinel',
-    headline: (card) => `SentinelProxy flagged unusual behavior by AI agent ${card.sentinel?.agent || 'session'}.`,
+    headline: (card) => `Tourniquet flagged unusual behavior by AI agent ${card.sentinel?.agent || 'session'}.`,
     explain: 'The agent did something outside its normal pattern. The alert alone does not show data leaving.',
     why: (card) => [card.sentinel?.narrative || '', card.sentinel?.tactic ? `Tactic: ${card.sentinel.tactic}.` : ''],
     whatToDo: 'Open the session log and check which tool calls ran and where their output went.',

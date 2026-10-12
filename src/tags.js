@@ -74,7 +74,7 @@ const SOURCE = {
   wazuh: 'Wazuh',
   aminer: 'AMiner',
   email: 'mailbox',
-  sentinel: 'SentinelProxy',
+  sentinel: 'Tourniquet',
 };
 
 // Legend groups, in display order. The UI colors tags by group.
@@ -138,7 +138,7 @@ export function deriveTags(card, briefing, { model = null, relatedCount = 0 } = 
 
   add('vendor', vendorTag(card));
 
-  if (card.source === 'sentinel') add('source', '#sentinelproxy');
+  if (card.source === 'sentinel') add('source', '#tourniquet');
   else if (SOURCE[card.source]) add('source', `#source:${SOURCE[card.source]}`);
 
   if (relatedCount > 0) add('ait', `#related:${relatedCount}`);

@@ -83,10 +83,10 @@ test('a model reply cannot lower the vendor-severity fallback', async () => {
   assert.equal(out.briefing.priority, 'P2');
 });
 
-// SentinelProxy: blocked vs report-only (post-execution) alerts must not share wording (#86 handoff).
+// Tourniquet: blocked vs report-only (post-execution) alerts must not share wording (#86 handoff).
 const sample = JSON.parse(readFileSync(new URL('../samples/sentinel-sample-alert.json', import.meta.url), 'utf8'));
 
-test('a blocked SentinelProxy alert says the proxy stopped the send, with one URL scheme', () => {
+test('a blocked Tourniquet alert says the proxy stopped the send, with one URL scheme', () => {
   const b = brief(normalize({ id: 's-block', record: sample }, windows));
   assert.equal(b.ruleId, 'sentinel.agent_exfil');
   assert.match(b.explain, /The proxy stopped the send/);
@@ -95,7 +95,7 @@ test('a blocked SentinelProxy alert says the proxy stopped the send, with one UR
   assert.match(b.why.join(' '), /toward https:\/\/collector\.example\.test\/in/);
 });
 
-test('a report-only SentinelProxy alert says the data was sent, never that it was stopped', () => {
+test('a report-only Tourniquet alert says the data was sent, never that it was stopped', () => {
   const record = structuredClone(sample);
   record.PatternDispositionDescription = 'Detected';
   record.PatternDispositionFlags = { ...record.PatternDispositionFlags, Blocked: false, ReportOnly: true };
@@ -110,7 +110,7 @@ test('a report-only SentinelProxy alert says the data was sent, never that it wa
   assert.doesNotMatch(all, /stopped the send|Leave the block in place|blocked it/);
 });
 
-test('a flagged but not blocked SentinelProxy alert never claims the send was stopped', () => {
+test('a flagged but not blocked Tourniquet alert never claims the send was stopped', () => {
   const record = structuredClone(sample);
   record.PatternDispositionDescription = 'Detected';
   record.PatternDispositionFlags = { ...record.PatternDispositionFlags, Blocked: false };

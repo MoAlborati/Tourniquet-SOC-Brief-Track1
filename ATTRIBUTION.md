@@ -13,7 +13,7 @@ AMiner records are flattened. Long log lines are truncated, and encoded command 
 requests are replaced with `[REDACTED:encoded-parameter]`. The full dataset is not in this repo.
 `scripts/fetch-ait.sh` downloads it into `data/`, which is gitignored.
 
-## SentinelProxy sample alert
+## Tourniquet sample alert
 
-`samples/sentinel-sample-alert.json` is a synthetic alert produced by this repo's SentinelProxy project.
+`samples/sentinel-sample-alert.json` is a synthetic alert produced by this repo's Tourniquet project.
 Its canary value is redacted.

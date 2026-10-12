@@ -6,7 +6,7 @@
 //
 // Integration cases the engine must satisfy once both halves are combined:
 //   1. GET /api/queue returns >= 16 rows.
-//   2. At least one queue row has family 'sentinel' (the SentinelProxy agent alert).
+//   2. At least one queue row has family 'sentinel' (the Tourniquet agent alert).
 //   3. No queue row (or its briefing) carries an `expect` field or other ground truth.
 //   4. Row id 'rm-webshell' has briefing.disposition 'escalate' and phase 'webshell'.
 //   5. GET /api/eval: disposition and phase are fully correct (correct === total).

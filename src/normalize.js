@@ -75,7 +75,7 @@ function suricataPriority(record, text) {
   return match ? Number(match[1]) : null;
 }
 
-// SentinelProxy writes the sink as `${type}:${destination}`. When the type is a URL scheme and the
+// Tourniquet writes the sink as `${type}:${destination}`. When the type is a URL scheme and the
 // destination is already a URL, that renders as "http:https://…". Show the URL once.
 function tidyNarrative(text) {
   return String(text || '').replace(/\b(?:https?):(?=https?:\/\/)/gi, '');

@@ -10,7 +10,7 @@ Three kinds of item share one queue:
 
 - **IDS alerts** from the AIT Alert Data Set (Wazuh, Suricata, AMiner). Each alert carries its attack phase from `labels.csv` when its timestamp falls inside a labeled window.
 - **Phishing and lure email**, such as a password-reset lure or a disk-image attachment.
-- **SentinelProxy agent alerts** from Track 3, which use MITRE ATLAS and OWASP LLM tags and a block or allow decision.
+- **Tourniquet agent alerts** from Track 3, which use MITRE ATLAS and OWASP LLM tags and a block or allow decision.
 
 ## How to run
 
@@ -43,7 +43,7 @@ The IDS samples come from the **AIT Alert Data Set (AIT-ADS)** by Landauer, Skop
 
 - Committed: `labels.csv`, unchanged, and a small number of redacted alert lines from the `russellmitchell` scenario.
 - Not committed: the full 96 MB archive. `scripts/fetch-ait.sh` downloads it into the gitignored `data/` folder.
-- The SentinelProxy alert shape is this repository's own format. The email samples were written for this demo.
+- The Tourniquet alert shape is this repository's own format. The email samples were written for this demo.
 
 The full license, citation, and redaction notes are in **[ATTRIBUTION.md](ATTRIBUTION.md)**.
 
@@ -68,9 +68,9 @@ needs-human precision 1 recall 1
 
 How to read these numbers:
 
-- **Attack-phase accuracy against `labels.csv`: 13/13 AIT alerts** (the other 4 cases are email and SentinelProxy items, which have no phase). This is the only score checked against independent ground truth. It shows that the loader maps each alert's timestamp to the correct `labels.csv` window, including the rule that a timestamp on a shared boundary stays with the earlier phase. It is a lookup check, not a detection score. A time window doesn't mean every alert inside it is malicious, so the phase is shown as context on the card and doesn't set the disposition.
+- **Attack-phase accuracy against `labels.csv`: 13/13 AIT alerts** (the other 4 cases are email and Tourniquet items, which have no phase). This is the only score checked against independent ground truth. It shows that the loader maps each alert's timestamp to the correct `labels.csv` window, including the rule that a timestamp on a shared boundary stays with the earlier phase. It is a lookup check, not a detection score. A time window doesn't mean every alert inside it is malicious, so the phase is shown as context on the card and doesn't set the disposition.
 - **Disposition and activity at 17/17 are in-sample consistency, not accuracy.** The expected values in `samples/curated.json` were written by hand alongside the rules in `src/signals.js`. The score shows that the rules and the answer key agree. It doesn't show how the rules perform on alerts they weren't written against.
-- **The "phase 17/17" line counts 4 non-AIT items (email, SentinelProxy) whose expected phase is simply empty.** The meaningful number is the 13/13 above.
+- **The "phase 17/17" line counts 4 non-AIT items (email, Tourniquet) whose expected phase is simply empty.** The meaningful number is the 13/13 above.
 - **No disposition ground truth exists.** AIT-ADS labels time windows, not per-alert verdicts, so we do not claim a disposition accuracy.
 - **Held-out run on unseen alerts (PR #101, `track1/eval-heldout/RESULTS.md`).** On 15 alerts the rules were not written against (13 verbatim AIT-ADS alerts from the 7 non-curated scenarios, plus the 2 Suricata cases below), phase against `labels.csv` is **13/13**, and **9/15 (60%) match no local rule** (`unclassified`). Over all 2,610,277 alerts in those scenarios, **82.7% match no local rule**. Phase is now correct for every Wazuh, Suricata, and AMiner row; before the AMiner fix (#107), real AMiner alerts got no phase (0/43,579 in-window).
 
@@ -89,7 +89,7 @@ The fallback has a cost. On the full held-out data it raises 10,723 alerts; 10,5
 
 ## Cross-track bridge
 
-SOC Brief triages **SentinelProxy (Track 3) alerts** in the same queue as IDS alerts and email. `samples/sentinel-sample-alert.json` and `sentinel-case.json` use the Track 3 alert shape (MITRE ATLAS technique, OWASP LLM category, block or allow). In the eval, the sample agent-exfiltration alert (`sample-0001`) is briefed as `ai_agent_exfil` and escalated. In that sample the Track 3 proxy blocked the action, and SOC Brief explains it to the analyst who has to follow up. A report-only SentinelProxy alert (the tool already ran) is briefed differently: the card says the data should be treated as sent and never says the proxy stopped it. A flagged alert that was not blocked says it was flagged, not blocked.
+SOC Brief triages **Tourniquet (Track 3) alerts** in the same queue as IDS alerts and email. `samples/sentinel-sample-alert.json` and `sentinel-case.json` use the Track 3 alert shape (MITRE ATLAS technique, OWASP LLM category, block or allow). In the eval, the sample agent-exfiltration alert (`sample-0001`) is briefed as `ai_agent_exfil` and escalated. In that sample the Track 3 proxy blocked the action, and SOC Brief explains it to the analyst who has to follow up. A report-only Tourniquet alert (the tool already ran) is briefed differently: the card says the data should be treated as sent and never says the proxy stopped it. A flagged alert that was not blocked says it was flagged, not blocked.
 
 ## Limitations
 

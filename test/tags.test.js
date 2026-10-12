@@ -59,9 +59,9 @@ test('the brief examples map to the expected tags', async () => {
   assert.ok(suri.includes('#vendor:P3'), 'Suricata priority shows as #vendor:P<n>');
   assert.ok(suri.includes('#source:Suricata'));
 
-  // SentinelProxy blocked agent exfil (old id sample-0001 -> sentinel-agent-exfil).
+  // Tourniquet blocked agent exfil (old id sample-0001 -> sentinel-agent-exfil).
   const agent = tagsOf('sentinel-agent-exfil');
-  assert.ok(agent.includes('#sentinelproxy'));
+  assert.ok(agent.includes('#tourniquet'));
   assert.ok(agent.includes('#blocked'));
   assert.ok(agent.some((label) => label.startsWith('#ATLAS:')), 'agent alerts use ATLAS, not ATT&CK');
   assert.equal(agent.includes('#post-execution'), false);

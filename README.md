@@ -25,7 +25,7 @@ open `/api/report` in the browser.
 
 ## What the demo shows
 
-- **Alert queue (left).** Alerts from the AIT-ADS intrusion dataset, plus one SentinelProxy alert
+- **Alert queue (left).** Alerts from the AIT-ADS intrusion dataset, plus one Tourniquet alert
   about an AI agent. Each row shows the attack phase (or "outside window" if it falls outside
   the labeled attack timeline), the alert family, and the verdict.
 - **Briefing (right).** A headline, a one-paragraph summary, the reasons behind the verdict, the

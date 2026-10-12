@@ -68,7 +68,7 @@ test('related count reflects other cards in the same scenario window', () => {
 test('phase notes differ for outside-window, email, and sentinel cards', () => {
   assert.match(phaseNote(byId.get('rm-dovecot-ok').card), /Outside every labeled attack window/);
   assert.match(phaseNote(byId.get('mail-invoice-iso').card), /Mailbox items/);
-  assert.match(phaseNote(byId.get('sentinel-agent-exfil').card), /SentinelProxy/);
+  assert.match(phaseNote(byId.get('sentinel-agent-exfil').card), /Tourniquet/);
 });
 
 test('model output cannot lower the deterministic disposition', async () => {
