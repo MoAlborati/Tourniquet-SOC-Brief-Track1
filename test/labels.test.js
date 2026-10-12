@@ -8,9 +8,13 @@ import { root, samplesDir } from '../src/paths.js';
 
 const windows = loadWindows();
 
-test('paths resolve to the track1 folder', () => {
-  assert.match(root, /track1\/?$/);
+test('paths resolve to the project root', () => {
+  // After the Track 1 repo split the SOC Brief is hoisted to the repo root,
+  // so `root` is the package root (containing package.json + samples/) rather
+  // than a `track1/` subdirectory of the mono-repo.
+  assert.ok(statSync(join(root, 'package.json')).isFile());
   assert.equal(samplesDir, join(root, 'samples'));
+  assert.ok(statSync(samplesDir).isDirectory());
 });
 
 test('labels.csv covers all eight AIT-ADS scenarios with ordered attack phases', () => {

@@ -1,3 +1,8 @@
+> **Split from the mono-repo.** This repository is the **Track 1 (AI for SOC Analyst)** deliverable,
+> extracted with `git subtree split --prefix=track1` (history-preserving) from
+> [`shrutidoshi94/AIC-X-Crowdstrike-Hackathon`](https://github.com/shrutidoshi94/AIC-X-Crowdstrike-Hackathon)
+> at tag `v1.0-submission`. The Track 3 (Tourniquet) guardrail lives in that mono-repo / the Track 3 repo.
+
 # SOC Brief
 
 Plain-English triage for analysts who are new to security and AI. Built for Track 1 (AI for SOC
