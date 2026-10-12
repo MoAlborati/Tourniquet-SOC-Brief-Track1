@@ -43,7 +43,9 @@ test('real AMiner webshell alert is phased and escalated as a webshell', () => {
   const card = cardOf(alert);
   const briefing = brief(card);
   assert.equal(card.phase, 'webshell');
-  assert.equal(briefing.activity, 'webshell');
+  // #141 taxonomy: the old `webshell` activity is `webshell_command`. The ported
+  // #107 behavior is that a real AMiner webshell line still escalates.
+  assert.equal(briefing.activity, 'webshell_command');
   assert.equal(briefing.disposition, 'escalate');
 });
 

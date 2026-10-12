@@ -12,6 +12,17 @@ const ATTACK = {
   web_scan: 'T1595',
   auth_failure: 'T1110',
   service_stop: 'T1489',
+  // #141 engine activity names (ported from #111's tag map).
+  credential_phish: 'T1566',
+  account_lure: 'T1566',
+  webshell_command: 'T1505.003',
+  web_user_switch: 'T1548',
+  reverse_shell: 'T1059',
+  dns_exfil: 'T1048',
+  service_scan: 'T1046',
+  wordpress_scan: 'T1595',
+  web_content_scan: 'T1595',
+  password_guessing: 'T1110',
 };
 
 // Kill-chain stage per activity, so an analyst can filter "everything in escalation".
@@ -25,6 +36,18 @@ const STAGE = {
   privilege_escalation: 'escalation',
   service_stop: 'impact',
   ai_agent_exfil: 'exfiltration',
+  // #141 engine activity names (ported from #111's stage map).
+  credential_phish: 'initial-access',
+  account_lure: 'initial-access',
+  service_scan: 'recon',
+  wordpress_scan: 'recon',
+  web_content_scan: 'recon',
+  password_guessing: 'credential-access',
+  webshell_command: 'persistence',
+  web_user_switch: 'escalation',
+  reverse_shell: 'execution',
+  dns_exfil: 'exfiltration',
+  agent_exfil: 'exfiltration',
 };
 
 // One extra "what it means" tag for activities whose name alone undersells them.
@@ -36,6 +59,14 @@ const EXTRA = {
   policy_noise: 'noise',
   benign_login: 'noise',
   benign_mail: 'noise',
+  // #141 engine activity names (ported from #111's extra-tag map).
+  credential_phish: 'credential-theft',
+  account_lure: 'credential-theft',
+  agent_exfil: 'prompt-injection',
+  routine_email: 'noise',
+  routine_login: 'noise',
+  av_update: 'noise',
+  protocol_anomaly: 'noise',
 };
 
 const SOURCE = {

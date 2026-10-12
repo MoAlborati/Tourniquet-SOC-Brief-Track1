@@ -20,6 +20,14 @@ function has(card, pattern) {
   return pattern.test(card.textLower || '');
 }
 
+// Port of #99's vendor-severity fallback into the #141 taxonomy: when no local
+// rule matches, a Suricata Priority 1 alert or a Wazuh rule level >= 10 is loud
+// enough on its own to warrant a look (investigate/P2). Lower ratings stay
+// monitor/P3. 1 is Suricata's highest priority.
+function vendorIsHigh(card) {
+  return Number(card.vendorLevel) >= 10 || card.vendorPriority === 1;
+}
+
 function attachmentOf(card) {
   return String(card.email?.attachment || '').toLowerCase();
 }
@@ -39,14 +47,29 @@ const RULES = [
       const outcome = card.sentinel?.blocked ? 'was blocked' : 'was not blocked';
       return `AI agent ${card.sentinel?.agent || 'session'} tried to send protected data to an outside address, and the proxy says it ${outcome}.`;
     },
-    explain: 'Text the agent read from an untrusted document steered it into reading sensitive data and posting it outside. This is prompt injection leading to data theft through the agent’s own tools.',
+    // Port of #99's report-only wording into the #141 taxonomy: a blocked send
+    // and a report-only (post-execution) alert must never share wording. A
+    // blocked alert says the proxy stopped the send; a report-only alert says
+    // the data was already sent and must not claim a block.
+    explain: (card) => {
+      const base = 'Text the agent read from an untrusted document steered it into reading sensitive data and posting it outside. This is prompt injection leading to data theft through the agent’s own tools.';
+      if (card.sentinel?.blocked) return `${base} The proxy stopped the send before it left.`;
+      if (card.sentinel?.reportOnly) return `${base} The proxy saw this after the tool had already run, so the data was sent; it did not block it.`;
+      return `${base} SentinelProxy flagged it but did not block it.`;
+    },
     why: (card) => [
       card.sentinel?.severityName ? `SentinelProxy rated it ${card.sentinel.severityName}.` : '',
-      card.sentinel?.sink ? `Destination: ${card.sentinel.sink}.` : '',
+      card.sentinel?.sink ? `Data was headed toward ${card.sentinel.sink}.` : '',
       card.sentinel?.owasp?.length ? `Maps to ${card.sentinel.owasp.slice(0, 3).join(', ')}.` : '',
-      'A planted canary value showed up in the outbound request, so the leak is confirmed, not guessed.',
+      card.sentinel?.canary
+        ? `A planted canary (${card.sentinel.canary}) showed up in the outbound request, so the leak is confirmed, not guessed.`
+        : 'A planted canary value showed up in the outbound request, so the leak is confirmed, not guessed.',
     ],
-    whatToDo: 'Confirm the block held, pull the agent session log, and remove or quarantine the untrusted document that carried the instruction. Rotate any secret the agent could read in that session.',
+    whatToDo: (card) => {
+      if (card.sentinel?.blocked) return 'Leave the block in place, pull the agent session log, and remove or quarantine the untrusted document that carried the instruction. Rotate any secret the agent could read in that session.';
+      if (card.sentinel?.reportOnly) return 'Detected after the tool already ran; treat the data as sent. Rotate exposed secrets, pull the agent session log, and investigate what the agent reached. Remove or quarantine the untrusted document that carried the instruction.';
+      return 'Pull the agent session log, confirm whether the data left, and remove or quarantine the untrusted document that carried the instruction. Rotate any secret the agent could read in that session.';
+    },
   },
   {
     id: 'sentinel.agent_alert',
@@ -286,23 +309,30 @@ const FALLBACK = {
   activity: 'unclassified',
   test: () => true,
   headline: (card) => `Unclassified alert: ${card.title || 'no title'}.`,
-  explain: 'No rule recognized this alert, so it is shown with the vendor’s own severity.',
-  why: (card) => [card.vendorLevel != null ? `Vendor severity: ${card.vendorLevel}.` : ''],
+  explain: 'No rule recognized this alert, so the verdict falls back to the vendor’s own severity.',
+  why: (card) => [
+    vendorIsHigh(card)
+      ? 'No local rule matched, so the verdict comes from the vendor severity alone (no rule matched).'
+      : 'No local rule matched, and the vendor severity is low, so this only needs watching.',
+    card.vendorPriority != null
+      ? `Suricata rated it Priority ${card.vendorPriority} (1 is highest).`
+      : card.vendorLevel != null ? `Vendor severity level is ${card.vendorLevel}.` : '',
+  ],
   whatToDo: 'Read the raw log and decide whether a new rule is needed.',
 };
 
 export function matchSignal(card) {
   const rule = RULES.find((r) => r.test(card)) || FALLBACK;
   const disposition = rule.disposition
-    || (Number(card.vendorLevel) >= 10 ? 'investigate' : 'monitor');
+    || (vendorIsHigh(card) ? 'investigate' : 'monitor');
   return {
     activity: rule.activity,
     disposition,
     priority: PRIORITY[disposition],
     headline: rule.headline(card),
-    explain: rule.explain,
+    explain: typeof rule.explain === 'function' ? rule.explain(card) : rule.explain,
     why: rule.why(card).filter(Boolean),
-    whatToDo: rule.whatToDo,
+    whatToDo: typeof rule.whatToDo === 'function' ? rule.whatToDo(card) : rule.whatToDo,
     ruleId: rule.id,
   };
 }

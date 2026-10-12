@@ -38,21 +38,29 @@ test('the brief examples map to the expected tags', async () => {
     return labels(deriveTags(item.card, briefing, { relatedCount: item.relatedCount }));
   };
 
-  const phish = tagsOf('email-phish');
-  for (const label of ['#phishing', '#credential-theft', '#ATT&CK:T1566', '#phase:initial-access', '#source:mailbox']) {
+  // #141 taxonomy: credential-phish mail (old id email-phish -> mail-password-expiry,
+  // old activity `phishing` -> `credential_phish`). The ported #111 behavior is that
+  // the brief still carries a credential-theft / ATT&CK:T1566 / initial-access tag set.
+  const phish = tagsOf('mail-password-expiry');
+  for (const label of ['#credential-phish', '#credential-theft', '#ATT&CK:T1566', '#phase:initial-access', '#source:mailbox']) {
     assert.ok(phish.includes(label), `phish missing ${label}: ${phish}`);
   }
 
+  // webshell (old activity `webshell` -> `webshell_command`).
   const shell = tagsOf('rm-webshell');
-  for (const label of ['#webshell', '#AIT:webshell', '#ATT&CK:T1505.003', '#source:AMiner']) {
+  for (const label of ['#webshell-command', '#AIT:webshell', '#ATT&CK:T1505.003', '#source:AMiner']) {
     assert.ok(shell.includes(label), `webshell missing ${label}: ${shell}`);
   }
 
-  assert.ok(tagsOf('rm-sudo').includes('#phase:escalation'));
-  assert.ok(tagsOf('rm-apt-policy').includes('#vendor:P3'), 'Suricata priority shows as #vendor:P<n>');
-  assert.ok(tagsOf('rm-apt-policy').includes('#source:Suricata'));
+  assert.ok(tagsOf('rm-privesc-sudo').includes('#phase:escalation'));
 
-  const agent = tagsOf('sample-0001');
+  // Suricata's own priority still surfaces as #vendor:P<n> with a Suricata source tag.
+  const suri = labels(deriveTags({ source: 'suricata', vendorPriority: 3 }, { activity: 'unclassified' }));
+  assert.ok(suri.includes('#vendor:P3'), 'Suricata priority shows as #vendor:P<n>');
+  assert.ok(suri.includes('#source:Suricata'));
+
+  // SentinelProxy blocked agent exfil (old id sample-0001 -> sentinel-agent-exfil).
+  const agent = tagsOf('sentinel-agent-exfil');
   assert.ok(agent.includes('#sentinelproxy'));
   assert.ok(agent.includes('#blocked'));
   assert.ok(agent.some((label) => label.startsWith('#ATLAS:')), 'agent alerts use ATLAS, not ATT&CK');

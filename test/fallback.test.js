@@ -29,8 +29,12 @@ test('Suricata Cobalt Strike beacon, vendor Priority 1, comes out investigate/P2
   const b = brief(card);
   assert.equal(b.disposition, 'investigate');
   assert.equal(b.priority, 'P2');
-  assert.equal(b.ruleId, 'vendor-severity');
-  assert.ok(b.why.includes('Reason: vendor severity (no rule matched).'));
+  // #141 taxonomy: the old `vendor-severity` rule id is now `fallback.unclassified`.
+  // Ported #99 behavior: a Suricata Priority 1 alert with no local rule still
+  // escalates to investigate/P2 on vendor severity alone.
+  assert.equal(b.ruleId, 'fallback.unclassified');
+  assert.ok(b.why.some((w) => /no rule matched/.test(w)), `why: ${b.why}`);
+  assert.ok(b.why.some((w) => /Priority 1/.test(w)), `why: ${b.why}`);
 });
 
 test('Suricata SQL Injection UNION SELECT, vendor Priority 1 in a fast.log line, comes out investigate/P2', () => {
@@ -46,14 +50,14 @@ test('Suricata SQL Injection UNION SELECT, vendor Priority 1 in a fast.log line,
   const b = brief(card);
   assert.equal(b.disposition, 'investigate');
   assert.equal(b.priority, 'P2');
-  assert.ok(b.why.includes('Reason: vendor severity (no rule matched).'));
+  assert.ok(b.why.some((w) => /no rule matched/.test(w)), `why: ${b.why}`);
 });
 
 test('lower vendor ratings keep the old monitor/P3 behavior', () => {
   const p3 = brief(suricata('adv-p3', 'ET INFO Some Unknown Signature', 'Misc activity', 3));
   assert.equal(p3.disposition, 'monitor');
   assert.equal(p3.priority, 'P3');
-  assert.equal(p3.ruleId, 'unclassified');
+  assert.equal(p3.ruleId, 'fallback.unclassified');
   // "attack" in the category alone does not raise it; only the vendor priority does.
   const p2 = brief(suricata('adv-p2', 'ET WEB_SERVER Unknown Probe', 'Web Application Attack', 2));
   assert.equal(p2.disposition, 'monitor');
@@ -84,7 +88,7 @@ const sample = JSON.parse(readFileSync(new URL('../samples/sentinel-sample-alert
 
 test('a blocked SentinelProxy alert says the proxy stopped the send, with one URL scheme', () => {
   const b = brief(normalize({ id: 's-block', record: sample }, windows));
-  assert.equal(b.ruleId, 'sentinel-agent');
+  assert.equal(b.ruleId, 'sentinel.agent_exfil');
   assert.match(b.explain, /The proxy stopped the send/);
   assert.match(b.whatToDo, /Leave the block in place/);
   assert.doesNotMatch(b.why.join(' '), /http:https?:\/\//);
@@ -97,7 +101,7 @@ test('a report-only SentinelProxy alert says the data was sent, never that it wa
   record.PatternDispositionFlags = { ...record.PatternDispositionFlags, Blocked: false, ReportOnly: true };
   record.CaseCard.Narrative = '[response-side · alert_only] Instruction originated in planted secret → influenced tool call submit_to_index(c1) → toward http:http://127.0.0.1:44669/api/canary → reported (alert-only) by rule honeytoken.exact_match. Outcome: reply_delivered_tool_already_executed.';
   const b = brief(normalize({ id: 's-report', record }, windows));
-  assert.equal(b.ruleId, 'sentinel-agent-report-only');
+  assert.equal(b.ruleId, 'sentinel.agent_exfil');
   assert.equal(b.disposition, 'escalate');
   assert.match(b.whatToDo, /Detected after the tool already ran; treat the data as sent/);
   assert.match(b.whatToDo, /[Rr]otate exposed secrets/);
@@ -113,7 +117,7 @@ test('a flagged but not blocked SentinelProxy alert never claims the send was st
   delete record.PatternDispositionFlags.ReportOnly;
   record.CaseCard.Narrative = 'Instruction originated in planted secret -> influenced tool call submit_to_index(c1) -> flagged by rule honeytoken.exact_match.';
   const b = brief(normalize({ id: 's-flag', record }, windows));
-  assert.equal(b.ruleId, 'sentinel-agent');
+  assert.equal(b.ruleId, 'sentinel.agent_exfil');
   const all = [b.headline, b.explain, b.whatToDo, b.summary].join(' ');
   assert.doesNotMatch(all, /stopped the send|Leave the block in place|blocked it/);
   assert.match(b.explain, /did not block it/);

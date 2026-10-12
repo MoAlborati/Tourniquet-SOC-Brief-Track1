@@ -104,6 +104,8 @@ function sentinelView(record) {
     agent: record.Entities?.Agent?.Name || '',
     tool: record.Entities?.ToolCall?.Name || '',
     sink: record.Entities?.Sink?.Destination || '',
+    // Canary is named by id only; the value is never read here, so it can never reach a brief.
+    canary: record.Canary?.Id || null,
   };
 }
 
