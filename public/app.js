@@ -237,13 +237,12 @@ function incidentBlock(incident) {
 function renderQueue() {
   queueEl.replaceChildren();
   const visible = rows.filter((row) => filter === 'all' || row.family === filter);
-  // Deterministic, offline grouping by shared host + actor + time window.
-  const incidents = groupIncidents(visible);
+  // Flat list grouped into the three severity sections (one bar, three sections).
   const groups = BANDS.map((band) => ({ ...band, entries: [], alertCount: 0 }));
-  for (const incident of incidents) {
-    const band = groups[bandIndexForPriority(incident.priority)];
-    band.entries.push(incident);
-    band.alertCount += incident.size;
+  for (const row of visible) {
+    const band = groups[bandIndex(row)];
+    band.entries.push(row);
+    band.alertCount += 1;
   }
 
   const meter = el('div', 'meter');
@@ -267,7 +266,7 @@ function renderQueue() {
     const list = el('div', 'lane-list');
     if (!group.entries.length) list.append(el('p', 'empty', 'None'));
     else for (const entry of group.entries) {
-      list.append(entry.isIncident ? incidentBlock(entry) : rowButton(entry.members[0]));
+      list.append(rowButton(entry));
     }
     lane.append(list);
     lanes.append(lane);
