@@ -1,6 +1,6 @@
 # SOC Brief: Track 1 submission (AI for SOC Analyst)
 
-> Track 1 lead: @shrutidoshi94. Built from `track1/README.md`, `ATTRIBUTION.md`, `src/`, the output of `npm run eval`, and the held-out eval in `eval-heldout/`, all on `main` (72c459f, after #99, #101, and #107). Change anything that doesn't match how you want to present it.
+> Track 1 lead: @shrutidoshi94. Built from `README.md`, `ATTRIBUTION.md`, `src/`, the output of `npm run eval`, and the held-out eval in `eval-heldout/`, all on `main` (72c459f, after #99, #101, and #107). Change anything that doesn't match how you want to present it.
 
 ## Pitch
 
@@ -19,13 +19,15 @@ Requires Node 22 or later. There are no npm dependencies.
 ### Offline, no API key (the default demo)
 
 ```bash
-cd track1
 npm test        # unit tests, no network
 npm run eval    # scores the curated queue (see "Evaluation")
 npm start       # http://127.0.0.1:8787/ (listens on loopback only)
 ```
 
 Every card is built by deterministic rules, so the demo works fully without a key.
+
+Offline screen recordings are in [`videos/`](videos/) (the queue UI and the Tourniquet-to-SOC-Brief
+handoff), and the demo flow and talking points are in [`PRESENTATION.md`](PRESENTATION.md).
 
 ### With a model
 
@@ -72,7 +74,7 @@ How to read these numbers:
 - **Disposition and activity at 17/17 are in-sample consistency, not accuracy.** The expected values in `samples/curated.json` were written by hand alongside the rules in `src/signals.js`. The score shows that the rules and the answer key agree. It doesn't show how the rules perform on alerts they weren't written against.
 - **The "phase 17/17" line counts 4 non-AIT items (email, Tourniquet) whose expected phase is simply empty.** The meaningful number is the 13/13 above.
 - **No disposition ground truth exists.** AIT-ADS labels time windows, not per-alert verdicts, so we do not claim a disposition accuracy.
-- **Held-out run on unseen alerts (PR #101, `track1/eval-heldout/RESULTS.md`).** On 15 alerts the rules were not written against (13 verbatim AIT-ADS alerts from the 7 non-curated scenarios, plus the 2 Suricata cases below), phase against `labels.csv` is **13/13**, and **9/15 (60%) match no local rule** (`unclassified`). Over all 2,610,277 alerts in those scenarios, **82.7% match no local rule**. Phase is now correct for every Wazuh, Suricata, and AMiner row; before the AMiner fix (#107), real AMiner alerts got no phase (0/43,579 in-window).
+- **Held-out run on unseen alerts (PR #101, `eval-heldout/RESULTS.md`).** On 15 alerts the rules were not written against (13 verbatim AIT-ADS alerts from the 7 non-curated scenarios, plus the 2 Suricata cases below), phase against `labels.csv` is **13/13**, and **9/15 (60%) match no local rule** (`unclassified`). Over all 2,610,277 alerts in those scenarios, **82.7% match no local rule**. Phase is now correct for every Wazuh, Suricata, and AMiner row; before the AMiner fix (#107), real AMiner alerts got no phase (0/43,579 in-window).
 
 ### Known misses, and what changed
 

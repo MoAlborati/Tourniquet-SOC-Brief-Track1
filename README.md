@@ -17,16 +17,20 @@ model is optional and only rewords the briefing.
 Requires Node.js 22 or newer. There are no dependencies to install.
 
 ```sh
-node track1/server.mjs
+node server.mjs
 # or
-cd track1 && npm start
+npm start
 ```
 
 Then open <http://127.0.0.1:8787>. Set `PORT` to use a different port. The server only listens on
 127.0.0.1.
 
-Run the tests with `npm test` from `track1/`. Print the evaluation report with `npm run eval`, or
+Run the tests with `npm test` from the repo root. Print the evaluation report with `npm run eval`, or
 open `/api/report` in the browser.
+
+Prefer to watch first? Offline screen recordings of the demo are in [`videos/`](videos/) (queue UI
+and the Tourniquet-to-SOC-Brief handoff), and the demo flow and talking points are in
+[`PRESENTATION.md`](PRESENTATION.md).
 
 ## What the demo shows
 
@@ -43,7 +47,7 @@ open `/api/report` in the browser.
 
 ## Data and keys
 
-- The AIT-ADS dataset is not committed. Fetch it locally with `track1/scripts/fetch-ait.sh`.
+- The AIT-ADS dataset is not committed. Fetch it locally with `scripts/fetch-ait.sh`.
   Everything it downloads stays out of git.
 - No key is needed for the demo. To use a language model, put its API key in your shell
   environment or a local `.env` file. Never commit keys. `.env` stays out of git.

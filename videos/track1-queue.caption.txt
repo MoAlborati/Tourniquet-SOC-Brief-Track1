@@ -1,0 +1,1 @@
+Track 1 (SOC Brief) · SHA cb2b7f5 (v1.0-submission) · Playwright queue UI at 1440x900: 22-alert queue, severity grouping, Escalate / Needs-a-human, 100% needs-human recall. Offline.
