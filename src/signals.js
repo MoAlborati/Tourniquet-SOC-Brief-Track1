@@ -81,8 +81,10 @@ export function matchSignal(card) {
       priority: high ? 'P1' : 'P2',
       headline: `${agent} tried to send data outside the company, and the guardrail ${card.sentinel?.blocked ? 'blocked it' : 'flagged it'}.`,
       why,
-      whatToDo: 'Leave the block in place. Confirm the canary or sensitive fields never left the network, then rotate anything the agent was able to read.',
-      explain: `A hidden instruction steered ${agent} into calling ${tool}. The call tried to carry data the agent had just read toward an outside destination. That is the agent version of data theft: untrusted text, private data, and a send button in the same turn. The proxy stopped the send. This note describes the path; it does not repeat the payload.`,
+      whatToDo: card.sentinel?.blocked
+        ? 'Leave the block in place. Confirm the canary or sensitive fields never left the network, then rotate anything the agent was able to read.'
+        : 'The guardrail flagged this call but did not block it. Check whether the canary or sensitive fields reached the destination, then rotate anything the agent was able to read.',
+      explain: `A hidden instruction steered ${agent} into calling ${tool}. The call tried to carry data the agent had just read toward an outside destination. That is the agent version of data theft: untrusted text, private data, and a send button in the same turn. ${card.sentinel?.blocked ? 'The proxy stopped the send.' : 'The proxy flagged the call but did not block it.'} This note describes the path; it does not repeat the payload.`,
     });
   }
 
