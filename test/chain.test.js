@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildQueue } from '../src/cases.js';
 import { runChain } from '../src/chain.js';
-import { createCompleter, parseDotEnv, readConfig } from '../src/llm.js';
+import { createCompleter, DEFAULT_BASE_URL, DEFAULT_MODEL, parseDotEnv, readConfig } from '../src/llm.js';
 
 const webshell = buildQueue().find((item) => item.card.id === 'rm-webshell');
 
@@ -51,6 +51,8 @@ test('prose and a thrown client fall back without echoing the reply', async () =
 });
 
 test('the completer sends the key as a header and refuses to build without one', async () => {
+  assert.deepEqual(readConfig({}), { apiKey: '', baseUrl: DEFAULT_BASE_URL, model: DEFAULT_MODEL });
+  assert.equal(readConfig({ OPENROUTER_API_KEY: 'rk-test' }).apiKey, 'rk-test');
   assert.equal(createCompleter(readConfig({})), null);
   let seen;
   const complete = createCompleter(

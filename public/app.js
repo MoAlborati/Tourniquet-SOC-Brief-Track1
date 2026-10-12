@@ -1,265 +1,310 @@
-const queueEl = document.getElementById('queue');
-const queueStateEl = document.getElementById('queue-state');
-const queueCountEl = document.getElementById('queue-count');
-const briefingEl = document.getElementById('briefing');
-const scoreEl = document.getElementById('score');
-const pasteForm = document.getElementById('paste-form');
-const pasteText = document.getElementById('email-text');
-const pasteSubmit = document.getElementById('paste-submit');
-const pasteState = document.getElementById('paste-state');
-
-const DISPOSITION_TEXT = {
-  escalate: { label: 'Escalate', hint: 'Treat this as a real incident and hand it to a senior analyst now.' },
-  dismiss: { label: 'Dismiss', hint: 'Looks benign or expected. Close it with a short note.' },
-  review: { label: 'Needs a human', hint: 'Not clear-cut. A person should look before closing.' },
-};
+const queueEl = document.querySelector('#queue');
+const briefEl = document.querySelector('#brief');
+const scoreEl = document.querySelector('#score');
+const hintEl = document.querySelector('#model-hint');
+const emailOut = document.querySelector('#email-out');
 
 let rows = [];
-let openIndex = null;
+let filter = 'all';
+let selected = null;
+let modelReady = false;
 
-function el(tag, attrs = {}, ...children) {
+function el(tag, className, text) {
   const node = document.createElement(tag);
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value === undefined || value === null) continue;
-    if (key === 'class') node.className = value;
-    else node.setAttribute(key, value);
-  }
-  for (const child of children.flat()) {
-    if (child === null || child === undefined || child === false) continue;
-    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
-  }
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
   return node;
 }
 
-function dispositionKey(briefing) {
-  const raw = String(briefing?.disposition ?? '').toLowerCase();
-  if (raw.startsWith('esc')) return 'escalate';
-  if (raw.startsWith('dis') || raw === 'benign' || raw === 'close') return 'dismiss';
-  return 'review';
+function sourceLabel(row) {
+  if (row.family === 'sentinel') return 'SentinelProxy';
+  if (row.family === 'email') return 'Mailbox';
+  if (row.source === 'suricata') return 'Suricata';
+  if (row.source === 'aminer') return 'AMiner';
+  return 'Wazuh';
 }
 
-function dispositionLabel(briefing) {
-  const key = dispositionKey(briefing);
-  return briefing?.disposition ? DISPOSITION_TEXT[key].label : 'Unknown';
+function when(row) {
+  if (!row.timestamp) return '';
+  return row.timestamp.replace('T', ' ').replace('.000Z', 'Z').slice(0, 19);
 }
 
-function phaseText(phase) {
-  return phase ? String(phase).replace(/_/g, ' ') : 'outside window';
+const PRIORITY_ORDER = { P1: 0, P2: 1, P3: 2, P4: 3 };
+const BANDS = [
+  { id: 'red', label: 'Red' },
+  { id: 'yellow', label: 'Yellow' },
+  { id: 'green', label: 'Green' },
+];
+
+function bandIndex(row) {
+  const priority = row.briefing?.priority;
+  if (priority === 'P1') return 0;
+  if (priority === 'P2') return 1;
+  return 2;
 }
 
-function asList(value) {
-  if (Array.isArray(value)) return value.filter(Boolean).map(String);
-  if (typeof value === 'string' && value.trim()) return [value.trim()];
-  return [];
+// Red, then yellow, then green. P3 sits above P4 inside green. Sort is stable, so equal
+// priorities keep their current order.
+function sortQueue(list) {
+  return list
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) => (bandIndex(a.row) - bandIndex(b.row))
+      || ((PRIORITY_ORDER[a.row.briefing?.priority] ?? 9) - (PRIORITY_ORDER[b.row.briefing?.priority] ?? 9))
+      || (a.index - b.index))
+    .map(({ row }) => row);
 }
 
-function whatToDo(briefing) {
-  const value = briefing?.whatToDo ?? briefing?.nextSteps ?? briefing?.action ?? briefing?.recommendation;
-  return asList(value);
+async function load() {
+  const [health, queue, report] = await Promise.all([
+    fetch('/api/health').then((res) => res.json()),
+    fetch('/api/queue').then((res) => res.json()),
+    fetch('/api/eval').then((res) => res.json()),
+  ]);
+  modelReady = Boolean(health.model);
+  rows = sortQueue(queue);
+  hintEl.textContent = modelReady
+    ? `OpenRouter is on (${health.modelName || 'openrouter/free'}). Each alert is re-checked, and a rule verdict cannot be lowered.`
+    : 'Rules only. Add a free OpenRouter key as OPENROUTER_API_KEY in track1/.env to re-check alerts.';
+  scoreEl.replaceChildren(
+    el('strong', null, `${report.disposition.correct}/${report.disposition.total}`),
+    el('span', null, `dispositions match the analyst key · phase ${report.phase.correct}/${report.phase.total} · needs-human recall ${report.needsHuman.recall}`),
+  );
+  if (!selected && rows[0]) selected = rows[0].id;
+  renderQueue();
+  const current = rows.find((row) => row.id === selected);
+  if (current) renderBrief(current);
 }
 
-function fmt(value) {
-  if (value === null || value === undefined || value === '') return '—';
-  if (Array.isArray(value)) return value.length ? value.join(', ') : '—';
-  return String(value);
+function rowButton(row) {
+  const button = el('button', `row${row.id === selected ? ' on' : ''}`);
+  button.type = 'button';
+  button.append(el('span', `pri ${row.briefing.priority}`, row.briefing.priority));
+  const text = el('span');
+  text.append(el('strong', null, row.briefing.headline));
+  const meta = [sourceLabel(row), row.phase ? row.phase.replaceAll('_', ' ') : 'outside attack windows', when(row)]
+    .filter(Boolean)
+    .join(' · ');
+  text.append(el('small', null, meta));
+  button.append(text);
+  button.addEventListener('click', () => {
+    selected = row.id;
+    renderQueue();
+    renderBrief(row);
+  });
+  return button;
 }
 
 function renderQueue() {
   queueEl.replaceChildren();
-  queueCountEl.textContent = rows.length ? `${rows.length} alerts` : '';
-  if (!rows.length) {
-    queueStateEl.hidden = false;
-    queueStateEl.className = 'state';
-    queueStateEl.textContent = 'The queue is empty. No alerts to triage right now.';
-    return;
+  const visible = rows.filter((row) => filter === 'all' || row.family === filter);
+  const groups = BANDS.map((band) => ({ ...band, items: [] }));
+  for (const row of visible) groups[bandIndex(row)].items.push(row);
+
+  const meter = el('div', 'meter');
+  meter.setAttribute('role', 'img');
+  meter.setAttribute('aria-label', groups.map((group) => `${group.items.length} ${group.label.toLowerCase()}`).join(', '));
+  for (const group of groups) {
+    const seg = el('div', `meter-seg ${group.id}${group.items.length ? '' : ' empty'}`, group.items.length ? String(group.items.length) : '');
+    seg.style.flexGrow = String(group.items.length);
+    seg.title = `${group.items.length} ${group.label.toLowerCase()}`;
+    meter.append(seg);
   }
-  queueStateEl.hidden = true;
-  rows.forEach((row, index) => {
-    const key = dispositionKey(row.briefing);
-    const open = index === openIndex;
-    const item = el('li', { class: key, 'data-index': String(index) },
-      el('button', {
-        class: 'alert-toggle',
-        type: 'button',
-        'aria-expanded': open ? 'true' : 'false',
-      },
-        el('span', { class: 'chevron', 'aria-hidden': 'true' }, open ? '▾' : '▸'),
-        el('span', { class: 'row-title' }, row.title || row.briefing?.headline || row.id),
-        el('span', { class: `tag ${key}` }, dispositionLabel(row.briefing)),
-      ),
-    );
-    item.querySelector('button').addEventListener('click', () => select(index));
-    item.querySelector('button').addEventListener('keydown', (event) => {
-      if (event.key === 'ArrowDown') { event.preventDefault(); focusRow(index + 1); }
-      if (event.key === 'ArrowUp') { event.preventDefault(); focusRow(index - 1); }
-    });
-    queueEl.append(item);
-  });
+
+  const lanes = el('div', 'lanes');
+  for (const group of groups) {
+    const lane = el('section', `lane ${group.id}`);
+    lane.setAttribute('aria-label', `${group.label} alerts`);
+    const head = el('div', 'lane-head');
+    head.append(el('span', null, group.label));
+    head.append(el('span', 'count', String(group.items.length)));
+    lane.append(head);
+    const list = el('div', 'lane-list');
+    if (!group.items.length) list.append(el('p', 'empty', 'None'));
+    else for (const row of group.items) list.append(rowButton(row));
+    lane.append(list);
+    lanes.append(lane);
+  }
+  queueEl.append(meter, lanes);
+  queueEl.querySelector('.row.on')?.scrollIntoView({ block: 'nearest' });
 }
 
-function focusRow(index) {
-  const item = queueEl.children[Math.max(0, Math.min(rows.length - 1, index))];
-  const button = item?.querySelector('button');
-  if (button) button.focus();
-}
-
-function showClosed() {
-  briefingEl.replaceChildren(el('p', { class: 'state' }, 'Open an alert to read its briefing.'));
-}
-
-function select(index) {
-  if (openIndex === index) {
-    openIndex = null;
-    renderQueue();
-    showClosed();
-    return;
+function renderBrief(row, { model } = {}) {
+  briefEl.replaceChildren();
+  const kicker = el('div', 'kicker');
+  kicker.append(el('span', `tag ${row.briefing.priority}`, `${row.briefing.priority} ${row.briefing.disposition}`));
+  kicker.append(el('span', 'tag', sourceLabel(row)));
+  kicker.append(el('span', 'tag', row.briefing.activity.replaceAll('_', ' ')));
+  if (model?.status) {
+    const label = {
+      agreed: 'model agreed',
+      raised: 'model raised',
+      disposition_floor: 'rule held',
+      model_decided: 'model classified',
+    }[model.guard] || (model.status === 'model' ? 'model checked' : model.status);
+    kicker.append(el('span', 'tag', label));
   }
-  openIndex = index;
-  renderQueue();
-  renderBriefing(rows[index].briefing, rows[index]);
-}
-
-function modelNote(model) {
-  if (!model) return null;
-  if (model.status === 'skipped' || model.status === undefined) {
-    return 'Written by the built-in rules. No language model ran for this briefing.';
+  briefEl.append(kicker);
+  if (row.briefing.verification?.note) {
+    briefEl.append(el('p', 'meta', row.briefing.verification.note));
   }
-  if (model.status === 'ok') {
-    return `Rules first, then wording refined by ${model.name || 'a language model'}.`;
-  }
-  return `A language model was configured but did not finish (${model.status}). Showing the rule-based briefing.`;
-}
-
-function renderBriefing(briefing, context = {}) {
-  if (!briefing) {
-    briefingEl.replaceChildren(el('p', { class: 'state error' }, 'No briefing came back for this item.'));
-    return;
-  }
-  const key = dispositionKey(briefing);
-  const disp = DISPOSITION_TEXT[key];
-  const why = asList(briefing.why);
-  const todo = whatToDo(briefing);
+  briefEl.append(el('h2', null, row.briefing.headline));
+  briefEl.append(el('p', 'summary', row.briefing.summary));
+  const action = el('div', 'do');
+  action.append(el('span', null, 'What to do'));
+  action.append(el('p', null, row.briefing.whatToDo));
+  briefEl.append(action);
+  renderTeach(briefEl, row.briefing, model);
+  briefEl.append(el('h3', null, 'Why this, and not a quieter label'));
+  const list = document.createElement('ul');
+  for (const reason of row.briefing.why) list.append(el('li', null, reason));
+  briefEl.append(list);
+  if (row.briefing.phaseNote) briefEl.append(el('p', 'meta', row.briefing.phaseNote));
+  if (row.briefing.relatedNote) briefEl.append(el('p', 'meta', row.briefing.relatedNote));
   const facts = [
-    ['Host', context.host ?? briefing.host],
-    ['Source', context.src ?? briefing.src],
-    ['Destination', context.dst ?? briefing.dst],
-    ['Rule id', context.ruleId ?? briefing.ruleId],
-    ['Priority', briefing.priority],
-    ['Attack phase', phaseText(context.phase ?? briefing.phase)],
-    ['Related alerts', context.relatedCount ?? briefing.relatedCount],
-    ['When', context.timestamp ?? briefing.timestamp],
-  ];
+    row.ruleId ? `Rule ${row.ruleId}` : '',
+    row.vendorLevel != null && row.vendorLevel !== '' ? `Vendor level ${row.vendorLevel}` : '',
+    row.host ? `Host ${row.host}` : '',
+    row.src ? `Source ${row.src}` : '',
+  ].filter(Boolean).join(' · ');
+  if (facts) briefEl.append(el('p', 'meta', facts));
 
-  const folds = [];
-  if (briefing.summary) {
-    folds.push(fold('Summary', el('p', { class: 'summary' }, briefing.summary)));
+  if (modelReady && !model && row.id && !asked.has(row.id)) {
+    asked.add(row.id);
+    briefEl.append(el('p', 'meta', 'Re-checking this verdict with the model…'));
+    askModel(row);
   }
-  if (why.length) {
-    folds.push(fold('Why we think so', el('ul', { class: 'why' }, why.map((line) => el('li', {}, line)))));
+
+  const actions = el('div', 'actions');
+  const ask = el('button', 'ask', modelReady ? 'Re-check with model' : 'Model key not set');
+  ask.type = 'button';
+  ask.disabled = !modelReady;
+  ask.addEventListener('click', () => askModel(row));
+  actions.append(ask);
+  briefEl.append(actions);
+
+  const prompts = document.createElement('details');
+  const summary = document.createElement('summary');
+  summary.textContent = 'Prompt chain';
+  prompts.append(summary);
+  prompts.addEventListener('toggle', async () => {
+    if (!prompts.open || prompts.dataset.loaded) return;
+    prompts.dataset.loaded = '1';
+    const payload = await fetch(`/api/prompts/${encodeURIComponent(row.id)}`).then((res) => res.json());
+    for (const name of ['summarize', 'triage', 'verify', 'cover', 'explain']) {
+      prompts.append(el('h3', null, name));
+      prompts.append(el('pre', null, `${payload.prompts[name].system}\n\n${payload.prompts[name].user}`));
+    }
+  });
+  briefEl.append(prompts);
+
+  const raw = document.createElement('details');
+  const rawSummary = document.createElement('summary');
+  rawSummary.textContent = 'Alert text';
+  raw.append(rawSummary);
+  raw.addEventListener('toggle', async () => {
+    if (!raw.open || raw.dataset.loaded) return;
+    raw.dataset.loaded = '1';
+    const payload = await fetch(`/api/alert/${encodeURIComponent(row.id)}`).then((res) => res.json());
+    raw.append(el('pre', null, payload.text || ''));
+  });
+  briefEl.append(raw);
+}
+
+const asked = new Set();
+
+function renderTeach(parent, briefing, model) {
+  const lesson = model?.guard === 'model_decided' && briefing.explain
+    ? briefing.explain
+    : (briefing.lesson || briefing.explain);
+  if (lesson) {
+    parent.append(el('h3', null, 'What this threat is'));
+    parent.append(el('p', 'lesson', lesson));
   }
-  if (todo.length) {
-    const body = todo.length === 1
-      ? el('p', { class: 'todo' }, todo[0])
-      : el('ol', { class: 'todo' }, todo.map((line) => el('li', {}, line)));
-    folds.push(fold('What to do', body));
+  const evidence = Array.isArray(briefing.evidence) ? briefing.evidence : [];
+  if (!evidence.length) return;
+  parent.append(el('h3', null, 'What in the alert decided this'));
+  const list = document.createElement('ul');
+  list.className = 'evidence';
+  for (const item of evidence) {
+    const row = document.createElement('li');
+    row.append(el('span', 'field', item.field));
+    const quote = document.createElement('q');
+    quote.textContent = item.excerpt;
+    row.append(quote);
+    list.append(row);
   }
-  folds.push(fold('Details', el('dl', { class: 'facts' }, facts.map(([label, value]) => el('div', {}, el('dt', {}, label), el('dd', {}, fmt(value)))))));
-  const note = modelNote(context.model ?? briefing.model);
-  if (note) folds.push(fold('How this was written', el('p', { class: 'model-note' }, note)));
-
-  briefingEl.replaceChildren(
-    el('div', { class: `verdict ${key}` },
-      el('span', { class: 'big' }, briefing.disposition ? disp.label : 'Unknown'),
-      el('span', { class: 'hint' }, disp.hint),
-    ),
-    el('h2', { class: 'headline' }, briefing.headline || context.title || 'Untitled alert'),
-    ...folds,
-  );
+  parent.append(list);
 }
 
-function fold(title, body) {
-  return el('details', { class: 'fold' },
-    el('summary', {}, title),
-    body,
-  );
-}
-
-function ratio(part) {
-  if (!part || typeof part !== 'object') return '—';
-  const correct = part.correct ?? part.hits;
-  const total = part.total ?? part.count;
-  return correct === undefined || total === undefined ? '—' : `${correct}/${total}`;
-}
-
-function renderScore(evalResult) {
-  const recall = evalResult?.needsHuman?.recall;
-  const recallText = typeof recall === 'number' ? `${Math.round(recall * 100)}%` : '—';
-  scoreEl.replaceChildren(
-    'Phase ', el('strong', {}, ratio(evalResult?.phase)),
-    ' · Disposition ', el('strong', {}, ratio(evalResult?.disposition)),
-    ' · Needs-human recall ', el('strong', {}, recallText),
-  );
-}
-
-async function getJson(path) {
-  const res = await fetch(path, { headers: { accept: 'application/json' } });
-  if (!res.ok) throw new Error(`${path} returned HTTP ${res.status}`);
-  return res.json();
-}
-
-async function loadQueue() {
-  try {
-    const data = await getJson('/api/queue');
-    rows = Array.isArray(data) ? data : [];
-    openIndex = null;
-    renderQueue();
-    showClosed();
-  } catch (err) {
-    rows = [];
-    queueEl.replaceChildren();
-    queueStateEl.hidden = false;
-    queueStateEl.className = 'state error';
-    queueStateEl.textContent = `Could not load the alert queue. Is the server running? (${err.message})`;
-    briefingEl.replaceChildren(el('p', { class: 'state' }, 'No briefing to show until the queue loads. You can still check a pasted email below.'));
-  }
-}
-
-async function loadScore() {
-  try {
-    renderScore(await getJson('/api/eval'));
-  } catch {
-    scoreEl.textContent = 'Score unavailable.';
-  }
-}
-
-pasteForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const emailText = pasteText.value;
-  if (!emailText.trim()) {
-    pasteState.textContent = 'Paste an email first.';
+async function askModel(row) {
+  const response = await fetch('/api/triage', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id: row.id }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    briefEl.append(el('p', 'meta', payload.error || 'The model call failed.'));
     return;
   }
-  pasteSubmit.disabled = true;
-  pasteState.textContent = 'Reading the email…';
-  try {
-    const res = await fetch('/api/triage', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ emailText }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    openIndex = null;
+  const next = { ...row, briefing: payload.briefing };
+  const index = rows.findIndex((item) => item.id === row.id);
+  if (index >= 0) rows[index] = next;
+  rows = sortQueue(rows);
+  renderQueue();
+  renderBrief(next, { model: payload.model });
+}
+
+document.querySelectorAll('.chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    filter = chip.dataset.filter;
+    document.querySelectorAll('.chip').forEach((item) => item.classList.toggle('on', item === chip));
     renderQueue();
-    renderBriefing(data.briefing, { model: data.model ?? null, title: 'Pasted email' });
-    pasteState.textContent = 'Briefing shown above.';
-    briefingEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } catch (err) {
-    pasteState.textContent = `Could not brief this email: ${err.message}`;
-  } finally {
-    pasteSubmit.disabled = false;
-  }
+  });
 });
 
-loadQueue();
-loadScore();
+document.querySelector('#email-go').addEventListener('click', async () => {
+  emailOut.replaceChildren(el('p', 'meta', 'Reading…'));
+  const response = await fetch('/api/triage', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ emailText: document.querySelector('#email-text').value }),
+  });
+  const payload = await response.json();
+  emailOut.replaceChildren();
+  if (!response.ok) {
+    emailOut.append(el('p', null, payload.error || 'Could not read that message.'));
+    return;
+  }
+  const row = {
+    id: payload.id,
+    source: payload.source,
+    family: payload.family,
+    scenario: payload.scenario || null,
+    phase: payload.phase || null,
+    timestamp: payload.timestamp || null,
+    title: payload.title,
+    host: payload.host || null,
+    src: payload.src || null,
+    dst: payload.dst || null,
+    ruleId: payload.ruleId || payload.briefing.ruleId || null,
+    vendorLevel: payload.vendorLevel ?? null,
+    groups: payload.groups || [],
+    relatedCount: payload.relatedCount || 0,
+    briefing: payload.briefing,
+  };
+  if (filter !== 'all' && filter !== 'email') {
+    filter = 'all';
+    document.querySelectorAll('.chip').forEach((item) => item.classList.toggle('on', item.dataset.filter === 'all'));
+  }
+  rows.unshift(row);
+  rows = sortQueue(rows);
+  selected = row.id;
+  renderQueue();
+  renderBrief(row, { model: payload.model });
+  emailOut.append(el('p', 'meta', 'Added to the queue.'));
+});
+
+load().catch((error) => {
+  briefEl.append(el('p', null, `The queue did not load. ${error.message}`));
+});

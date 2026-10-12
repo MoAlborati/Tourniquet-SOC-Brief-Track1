@@ -1,54 +1,67 @@
 # SOC Brief
 
-Plain-English triage for analysts who are new to security and AI. Built for Track 1 (AI for SOC
-Analyst) of the CrowdStrike × Santa Clara University hackathon.
+A small queue for analysts who are new to the work. It reads a handful of alerts and says, in plain English, what happened, how loud it should be, and the one next step.
 
-SOC Brief reads an alert and gives you a short briefing: what happened, why it matters, what to do
-next, and whether to **escalate** or **dismiss**. Built-in rules decide every verdict. A language
-model is optional and only rewords the briefing.
+Three kinds of item sit in the same queue:
 
-## Run it
+- **AIT-ADS IDS alerts** from Wazuh, Suricata, and AMiner, with the attack phase filled in from `labels.csv` when the timestamp falls inside a labeled window.
+- **SentinelProxy agent alerts** (the Track 3 shape: MITRE ATLAS, OWASP LLM, block or allow).
+- **Email**, including a password lure and a disk-image attachment.
 
-Requires Node.js 22 or newer. There are no dependencies to install.
+The briefing is deterministic, so the demo runs with no API key. To re-check alerts, put a free OpenRouter key in `OPENROUTER_API_KEY`. The default model is `openrouter/free`, which sends each check to one of OpenRouter's free models. A built-in rule is re-checked: the model may agree or raise the verdict, and it cannot lower it. An alert no rule recognized is classified by the model instead. The summarize, triage, and explain prompts stay in the prompt chain for inspection. If the reply is not the expected JSON, the screen keeps the offline briefing and does not show the raw reply.
 
-```sh
-node track1/server.mjs
-# or
-cd track1 && npm start
+## Run
+
+```bash
+cd track1
+npm test
+npm start
 ```
 
-Then open <http://127.0.0.1:8787>. Set `PORT` to use a different port. The server only listens on
-127.0.0.1.
+Open http://127.0.0.1:8787/ . The server listens on loopback only.
 
-Run the tests with `npm test` from `track1/`. Print the evaluation report with `npm run eval`, or
-open `/api/report` in the browser.
+Optional model, never committed:
 
-## What the demo shows
+```bash
+cp .env.example .env
+# put the key in .env
+```
 
-- **Alert queue (left).** Alerts from the AIT-ADS intrusion dataset, plus one Tourniquet alert
-  about an AI agent. Each row shows the attack phase (or "outside window" if it falls outside
-  the labeled attack timeline), the alert family, and the verdict.
-- **Briefing (right).** A headline, a one-paragraph summary, the reasons behind the verdict, the
-  next step, and the key facts: host, source, destination, rule id, and priority. Escalate is red.
-  Dismiss is green. Unclear cases are amber and marked for a human.
-- **Check a suspicious email.** Paste a raw phishing email (headers, a blank line, then the body)
-  and get the same kind of briefing. The page says so when no language model ran.
-- **Score line (top right).** How many phases and verdicts match the dataset labels, and how many
-  of the cases that need a human the tool catches.
+`LLM_BASE_URL` and `LLM_MODEL` override the endpoint. The default is OpenRouter at `https://openrouter.ai/api/v1` with model `openrouter/free`.
 
-## Data and keys
+## What the score means
 
-- The AIT-ADS dataset is not committed. Fetch it locally with `track1/scripts/fetch-ait.sh`.
-  Everything it downloads stays out of git.
-- No key is needed for the demo. To use a language model, put its API key in your shell
-  environment or a local `.env` file. Never commit keys. `.env` stays out of git.
+`npm run eval` scores the curated queue against an analyst answer key in the sample files, and against `samples/labels.csv`.
 
-## API
+- **Phase** — the loader's attack-phase label matches the window in `labels.csv`. A timestamp on a shared boundary stays with the earlier phase.
+- **Disposition** — escalate, investigate, monitor, or dismiss.
+- **Needs a human** — escalate and investigate count as a page. Precision and recall are on that split.
 
-| Route | What it returns |
+When no local rule matches, the briefing falls back on the vendor's own rating: Suricata priority 1, or a Wazuh rule level of 10 or more, becomes investigate/P2 with the reason "vendor severity (no rule matched)". Anything lower stays monitor/P3 until a model classifies it. The model can raise a high vendor rating, and it cannot lower that one. It can set any verdict on a plain unmatched alert.
+
+Time windows are not per-alert guilt. A ClamAV update during a quiet hour is still a ClamAV update. The phase is context on the card. The disposition comes from what the log says.
+
+## Full dataset
+
+Do not commit it. `scripts/fetch-ait.sh` downloads the Zenodo archive (about 96 MB) into gitignored `track1/data/`.
+
+```bash
+track1/scripts/fetch-ait.sh
+SCAN_LIMIT=20000 node track1/scripts/scan.mjs track1/data/ait_ads/russellmitchell_wazuh.json
+```
+
+The committed slice is `samples/`. License and citation: [ATTRIBUTION.md](ATTRIBUTION.md).
+
+## Layout
+
+| Path | Role |
 | --- | --- |
-| `GET /api/health` | Server status, whether a model is configured, and the number of cases |
-| `GET /api/queue` | The alert queue with a briefing for each alert |
-| `GET /api/eval` | Scores against the dataset labels, as JSON |
-| `GET /api/report` | The same scores as a text report |
-| `POST /api/triage` | `{ "emailText": "..." }` → a briefing for that email (64 KiB limit) |
+| `src/labels.js` | `labels.csv` windows |
+| `src/normalize.js` | Wazuh, Suricata, AMiner, email, and SentinelProxy into one card |
+| `src/signals.js` | Rules a new team can read and edit. Trusted mail domains live at the top. |
+| `src/prompts.js` | Summarize, triage, and explain prompts (only triage is sent to the model), plus the disposition floor |
+| `src/chain.js` | Draft first, then one triage call to the model, fallback if the model reply is unusable |
+| `public/` | The queue |
+| `server.mjs` | Loopback HTTP, no dependencies |
+
+Suricata rows in AIT-ADS are nested in the Wazuh JSON. The sample tagged `suricata` is one of those rows, trimmed to the fields the briefing uses.
