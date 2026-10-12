@@ -34,10 +34,11 @@ function rawEpoch(record) {
 }
 
 const windows = loadWindows();
-const blank = () => ({ alerts: 0, unclassified: 0, inWindow: 0, inWindowUnclassified: 0, phaseOk: 0, needsHumanIn: 0, needsHumanOut: 0 });
+const blank = () => ({ alerts: 0, unclassified: 0, inWindow: 0, inWindowUnclassified: 0, phaseOk: 0, needsHumanIn: 0, needsHumanOut: 0, vendorRaised: 0, inWindowVendorRaised: 0 });
 const bySource = {};
 const byPhase = {};
 const unclassifiedTitles = new Map();
+const vendorRaisedTitles = new Map();
 
 for (const scenario of SCENARIOS) {
   for (const kind of ['wazuh', 'aminer']) {
@@ -59,11 +60,18 @@ for (const scenario of SCENARIOS) {
         if ((card.phase || null) === (truth || null)) bucket.phaseOk += 1;
         const nh = b.disposition === 'escalate' || b.disposition === 'investigate';
         if (b.activity === 'unclassified') bucket.unclassified += 1;
+        // No local rule matched, but the vendor-severity fallback raised it to investigate/P2.
+        if (b.ruleId === 'vendor-severity') bucket.vendorRaised += 1;
         if (truth) {
+          if (b.ruleId === 'vendor-severity') bucket.inWindowVendorRaised += 1;
           bucket.inWindow += 1;
           if (b.activity === 'unclassified') bucket.inWindowUnclassified += 1;
           if (nh) bucket.needsHumanIn += 1;
         } else if (nh) bucket.needsHumanOut += 1;
+      }
+      if (b.ruleId === 'vendor-severity') {
+        const key = `${card.source}: ${card.title}`.slice(0, 120);
+        vendorRaisedTitles.set(key, (vendorRaisedTitles.get(key) || 0) + 1);
       }
       if (b.activity === 'unclassified') {
         const key = `${card.source}: ${card.title}`.slice(0, 120);
@@ -79,4 +87,5 @@ const total = Object.values(bySource).reduce((acc, s) => {
   return acc;
 }, blank());
 const top = [...unclassifiedTitles.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
-console.log(JSON.stringify({ scenarios: SCENARIOS, limitPerFile: limit === Infinity ? null : limit, total, bySource, byPhase, topUnclassified: top }, null, 2));
+const topVendor = [...vendorRaisedTitles.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+console.log(JSON.stringify({ scenarios: SCENARIOS, limitPerFile: limit === Infinity ? null : limit, total, bySource, byPhase, topUnclassified: top, topVendorRaised: topVendor }, null, 2));
