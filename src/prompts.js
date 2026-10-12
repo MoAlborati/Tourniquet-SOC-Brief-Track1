@@ -2,6 +2,7 @@
 // still runs first, and the model is not allowed to lower its disposition.
 
 import { randomBytes } from 'node:crypto';
+import { buildContract } from './contract.js';
 
 // Bounds. Alert and email text come from outside, so every free-text field is
 // capped, a cut is marked in the prompt, and a prompt that still exceeds
@@ -149,15 +150,31 @@ export function applyModel(draft, parsed) {
     model_decided: 'No built-in rule matched. The model classified this alert.',
   }[guard];
 
+  const finalWhy = why && why.length ? why : draft.why;
+  // Re-derive the shared UI contract from the FINAL verdict. The rules draft
+  // disposition is the floor, so decidedBy is never 'ai-lowered'.
+  const contract = buildContract({
+    disposition,
+    priority,
+    why: finalWhy,
+    bump: draft.scoreBump || 0,
+    ranModel: true,
+    rulesDisposition: draft.disposition,
+  });
+
   return {
     ...draft,
     headline: headline || draft.headline,
     summary: summary || draft.summary,
     whatToDo: whatToDo || draft.whatToDo,
     explain: explain || draft.explain,
-    why: why && why.length ? why : draft.why,
+    why: finalWhy,
     disposition,
     priority,
+    verdict: contract.verdict,
+    score: contract.score,
+    decidedBy: contract.decidedBy,
+    contract,
     model: guard,
     verification: {
       by: modelDecides ? 'model' : 'rule+model',
