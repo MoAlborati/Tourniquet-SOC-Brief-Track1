@@ -4,27 +4,33 @@
   --surface: #121926;
   --surface-2: #19222f;
   --surface-3: #1f2a38;
-  --line: #27323f;
-  --line-soft: #1d2631;
+  --line: #222c38;
+  --line-soft: #1a222d;
   --ink: #e8eef5;
   --muted: #93a1b3;
   --muted-2: #6b7889;
-  --accent: #5ab0ff;
-  --accent-ink: #061018;
+  /* One restrained accent — a calm slate-blue, used only for focus,
+     selection and interactive affordances. Not a verdict color. */
+  --accent: #5b8def;
+  --accent-soft: rgba(91, 141, 239, 0.14);
+  --accent-ink: #f4f8ff;
 
-  /* Verdict / priority palette — bright enough on dark for AA. */
-  --escalate: #ff5d6c;
-  --investigate: #ffb224;
-  --monitor: #35d07f;
-  --dismiss: #8b97a8;
+  /* Semantic verdict palette — ONE color per verdict, used everywhere
+     (queue tick, verdict tag, brief kicker). AA on dark surfaces. */
+  --escalate: #f2616f;   /* red   */
+  --investigate: #f0a830; /* amber */
+  --monitor: #5b8def;    /* blue  */
+  --dismiss: #8c99ab;    /* grey  */
 
-  --p1: #ff5d6c;
-  --p2: #ffb224;
-  --p3: #35d07f;
-  --p4: #8b97a8;
+  /* Severity band = verdict logic: P1 escalate, P2 investigate,
+     P3 monitor, P4 dismiss. */
+  --p1: #f2616f;
+  --p2: #f0a830;
+  --p3: #5b8def;
+  --p4: #8c99ab;
 
-  --shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
-  --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow: 0 12px 34px rgba(0, 0, 0, 0.30);
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.25);
   font-family: "Inter", "Segoe UI", "Avenir Next", system-ui, sans-serif;
 }
 
@@ -34,8 +40,7 @@ body {
   margin: 0;
   color: var(--ink);
   background:
-    radial-gradient(1100px 420px at 100% -10%, rgba(90, 176, 255, 0.10), transparent 60%),
-    radial-gradient(900px 380px at -5% 0%, rgba(53, 208, 127, 0.06), transparent 55%),
+    radial-gradient(1200px 460px at 100% -15%, rgba(91, 141, 239, 0.07), transparent 62%),
     var(--bg);
   min-height: 100vh;
 }
@@ -150,9 +155,9 @@ main {
   font-weight: 700;
 }
 .meter-seg.empty { display: none; }
-.meter-seg.red { background: var(--p1); color: #220a0d; }
+.meter-seg.red { background: var(--p1); color: #2a0a0d; }
 .meter-seg.yellow { background: var(--p2); color: #2a1c00; }
-.meter-seg.green { background: var(--p3); color: #06231a; }
+.meter-seg.green { background: var(--p3); color: #081226; }
 
 .lanes { min-width: 0; padding: 6px 6px 8px 0; overflow-y: auto; max-height: 82vh; }
 .lane + .lane { border-top: 1px solid var(--line-soft); margin-top: 6px; padding-top: 2px; }
@@ -184,11 +189,11 @@ main {
 .row {
   width: 100%;
   text-align: left;
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--p4);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--p4);
   background: var(--surface-2);
   border-radius: 12px;
-  padding: 12px 13px;
+  padding: 14px 16px;
   cursor: pointer;
   display: block;
   transition: background 0.14s, border-color 0.14s, transform 0.08s;
@@ -203,21 +208,32 @@ main {
 
 .card-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-/* Big color-coded verdict badge */
+/* Verdict tag — a quiet outlined chip (one color per verdict), never a
+   button. A filled dot carries the color so the text stays readable. */
 .verdict {
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  padding: 4px 11px;
-  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
   text-transform: uppercase;
-  color: #0a0e14;
   line-height: 1.1;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
 }
-.verdict.escalate { background: var(--escalate); }
-.verdict.investigate { background: var(--investigate); }
-.verdict.monitor { background: var(--monitor); }
-.verdict.dismiss { background: var(--dismiss); }
+.verdict::before {
+  content: '';
+  width: 7px; height: 7px; border-radius: 50%;
+  background: currentColor;
+}
+.verdict.escalate { color: var(--escalate); border-color: rgba(242,97,111,0.38); background: rgba(242,97,111,0.10); }
+.verdict.investigate { color: var(--investigate); border-color: rgba(240,168,48,0.38); background: rgba(240,168,48,0.10); }
+.verdict.monitor { color: var(--monitor); border-color: rgba(91,141,239,0.38); background: rgba(91,141,239,0.10); }
+.verdict.dismiss { color: var(--dismiss); border-color: var(--line); background: var(--surface); }
 
 /* P-chip */
 .pchip {
@@ -279,7 +295,7 @@ main {
 .why-inline .vendor-note { font-size: 0.78rem; color: var(--muted); margin-top: 6px; }
 
 /* ===== Brief detail panel ===== */
-.brief { padding: 28px; min-height: 420px; }
+.brief { padding: 34px 36px; min-height: 420px; }
 .kicker { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
 .tag {
   border-radius: 999px;
@@ -289,9 +305,9 @@ main {
   font-size: 0.82rem;
   color: var(--ink);
 }
-.tag.P1 { background: rgba(255,93,108,0.14); color: var(--p1); border-color: rgba(255,93,108,0.35); }
-.tag.P2 { background: rgba(255,178,36,0.14); color: var(--p2); border-color: rgba(255,178,36,0.35); }
-.tag.P3 { background: rgba(53,208,127,0.14); color: var(--p3); border-color: rgba(53,208,127,0.35); }
+.tag.P1 { background: rgba(242,97,111,0.12); color: var(--p1); border-color: rgba(242,97,111,0.35); }
+.tag.P2 { background: rgba(240,168,48,0.12); color: var(--p2); border-color: rgba(240,168,48,0.35); }
+.tag.P3 { background: rgba(91,141,239,0.12); color: var(--p3); border-color: rgba(91,141,239,0.35); }
 .tag.P4 { background: var(--surface-2); color: var(--muted); }
 .brief h2 { font-size: 1.6rem; letter-spacing: -0.02em; line-height: 1.25; }
 .brief h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-top: 18px; }
