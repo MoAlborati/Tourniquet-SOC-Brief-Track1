@@ -105,3 +105,16 @@ test('a report-only SentinelProxy alert says the data was sent, never that it wa
   const all = [b.headline, b.explain, b.whatToDo, b.summary].join(' ');
   assert.doesNotMatch(all, /stopped the send|Leave the block in place|blocked it/);
 });
+
+test('a flagged but not blocked SentinelProxy alert never claims the send was stopped', () => {
+  const record = structuredClone(sample);
+  record.PatternDispositionDescription = 'Detected';
+  record.PatternDispositionFlags = { ...record.PatternDispositionFlags, Blocked: false };
+  delete record.PatternDispositionFlags.ReportOnly;
+  record.CaseCard.Narrative = 'Instruction originated in planted secret -> influenced tool call submit_to_index(c1) -> flagged by rule honeytoken.exact_match.';
+  const b = brief(normalize({ id: 's-flag', record }, windows));
+  assert.equal(b.ruleId, 'sentinel-agent');
+  const all = [b.headline, b.explain, b.whatToDo, b.summary].join(' ');
+  assert.doesNotMatch(all, /stopped the send|Leave the block in place|blocked it/);
+  assert.match(b.explain, /did not block it/);
+});
