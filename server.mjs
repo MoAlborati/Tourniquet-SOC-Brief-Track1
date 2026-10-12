@@ -94,6 +94,8 @@ async function readBody(req) {
 
 export function createApp({ queue = buildQueue(), complete = null, modelName = null } = {}) {
   const byId = new Map(queue.map((item) => [item.card.id, item]));
+  const pasted = [];
+  let pasteSeq = 0;
   const report = evaluate(queue);
 
   return async function app(req, res) {
@@ -102,12 +104,12 @@ export function createApp({ queue = buildQueue(), complete = null, modelName = n
       const path = url.pathname;
 
       if (req.method === 'GET' && path === '/api/health') {
-        send(res, 200, { ok: true, model: typeof complete === 'function', modelName, cases: queue.length });
+        send(res, 200, { ok: true, model: typeof complete === 'function', modelName, cases: queue.length + pasted.length });
         return;
       }
       if (req.method === 'GET' && path === '/api/queue') {
         const items = [];
-        for (const item of queue) {
+        for (const item of [...queue, ...pasted]) {
           const chain = await runChain(item.card, { relatedCount: item.relatedCount });
           items.push({ ...viewOf(item), briefing: chain.briefing });
         }
@@ -150,14 +152,15 @@ export function createApp({ queue = buildQueue(), complete = null, modelName = n
       if (req.method === 'POST' && path === '/api/triage') {
         const body = await readBody(req);
         if (body.emailText) {
+          pasteSeq += 1;
           const record = parseEmailText(body.emailText);
-          const card = normalizeAlert({ id: 'pasted-email', record }, new Map());
+          const card = normalizeAlert({ id: `paste-${pasteSeq}`, record }, new Map());
+          const item = { card, relatedCount: 0 };
+          byId.set(card.id, item);
+          pasted.push(item);
           const chain = await runChain(card, { complete });
           send(res, 200, {
-            id: card.id,
-            source: 'email',
-            family: 'email',
-            title: card.title,
+            ...viewOf(item),
             briefing: chain.briefing,
             model: chain.model,
             email: card.email,

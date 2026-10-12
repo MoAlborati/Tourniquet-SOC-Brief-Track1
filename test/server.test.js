@@ -54,6 +54,21 @@ test('the queue, the score, and a pasted email are served without a model', asyn
     }).then((res) => res.json());
     assert.equal(mail.briefing.activity, 'malware_lure');
     assert.equal(mail.model.status, 'skipped');
+    assert.equal(mail.family, 'email');
+    assert.match(mail.id, /^paste-\d+$/);
+
+    const withPaste = await fetch(`${ctx.base}/api/queue`).then((res) => res.json());
+    assert.equal(withPaste.length, queue.length + 1);
+    assert.equal(withPaste.some((row) => row.id === mail.id), true);
+    const stored = await fetch(`${ctx.base}/api/alert/${encodeURIComponent(mail.id)}`).then((res) => res.json());
+    assert.match(stored.text, /Invoice-18421\.iso/);
+
+    const second = await fetch(`${ctx.base}/api/triage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ emailText: 'From: a@b.test\nSubject: Hello\n\nJust a note.' }),
+    }).then((res) => res.json());
+    assert.notEqual(second.id, mail.id);
   } finally {
     await ctx.close();
   }

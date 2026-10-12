@@ -30,13 +30,26 @@ function when(row) {
 }
 
 const PRIORITY_ORDER = { P1: 0, P2: 1, P3: 2, P4: 3 };
+const BANDS = [
+  { id: 'red', label: 'Red' },
+  { id: 'yellow', label: 'Yellow' },
+  { id: 'green', label: 'Green' },
+];
 
-// P1 first so the first card a judge sees is the strongest case. Array.prototype.sort is stable,
-// so ties keep the server's order and the queue is the same on every load.
+function bandIndex(row) {
+  const priority = row.briefing?.priority;
+  if (priority === 'P1') return 0;
+  if (priority === 'P2') return 1;
+  return 2;
+}
+
+// Red, then yellow, then green. P3 sits above P4 inside green. Sort is stable, so equal
+// priorities keep their current order.
 function sortQueue(list) {
   return list
     .map((row, index) => ({ row, index }))
-    .sort((a, b) => ((PRIORITY_ORDER[a.row.briefing?.priority] ?? 9) - (PRIORITY_ORDER[b.row.briefing?.priority] ?? 9))
+    .sort((a, b) => (bandIndex(a.row) - bandIndex(b.row))
+      || ((PRIORITY_ORDER[a.row.briefing?.priority] ?? 9) - (PRIORITY_ORDER[b.row.briefing?.priority] ?? 9))
       || (a.index - b.index))
     .map(({ row }) => row);
 }
@@ -62,31 +75,57 @@ async function load() {
   if (current) renderBrief(current);
 }
 
+function rowButton(row) {
+  const button = el('button', `row${row.id === selected ? ' on' : ''}`);
+  button.type = 'button';
+  button.append(el('span', `pri ${row.briefing.priority}`, row.briefing.priority));
+  const text = el('span');
+  text.append(el('strong', null, row.briefing.headline));
+  const meta = [sourceLabel(row), row.phase ? row.phase.replaceAll('_', ' ') : 'outside attack windows', when(row)]
+    .filter(Boolean)
+    .join(' · ');
+  text.append(el('small', null, meta));
+  button.append(text);
+  button.addEventListener('click', () => {
+    selected = row.id;
+    renderQueue();
+    renderBrief(row);
+  });
+  return button;
+}
+
 function renderQueue() {
   queueEl.replaceChildren();
   const visible = rows.filter((row) => filter === 'all' || row.family === filter);
-  if (!visible.length) {
-    queueEl.append(el('p', 'empty', 'Nothing in this filter.'));
-    return;
+  const groups = BANDS.map((band) => ({ ...band, items: [] }));
+  for (const row of visible) groups[bandIndex(row)].items.push(row);
+
+  const meter = el('div', 'meter');
+  meter.setAttribute('role', 'img');
+  meter.setAttribute('aria-label', groups.map((group) => `${group.items.length} ${group.label.toLowerCase()}`).join(', '));
+  for (const group of groups) {
+    const seg = el('div', `meter-seg ${group.id}${group.items.length ? '' : ' empty'}`, group.items.length ? String(group.items.length) : '');
+    seg.style.flexGrow = String(group.items.length);
+    seg.title = `${group.items.length} ${group.label.toLowerCase()}`;
+    meter.append(seg);
   }
-  for (const row of visible) {
-    const button = el('button', `row${row.id === selected ? ' on' : ''}`);
-    button.type = 'button';
-    button.append(el('span', `pri ${row.briefing.priority}`, row.briefing.priority));
-    const text = el('span');
-    text.append(el('strong', null, row.briefing.headline));
-    const meta = [sourceLabel(row), row.phase ? row.phase.replaceAll('_', ' ') : 'outside attack windows', when(row)]
-      .filter(Boolean)
-      .join(' · ');
-    text.append(el('small', null, meta));
-    button.append(text);
-    button.addEventListener('click', () => {
-      selected = row.id;
-      renderQueue();
-      renderBrief(row);
-    });
-    queueEl.append(button);
+
+  const lanes = el('div', 'lanes');
+  for (const group of groups) {
+    const lane = el('section', `lane ${group.id}`);
+    lane.setAttribute('aria-label', `${group.label} alerts`);
+    const head = el('div', 'lane-head');
+    head.append(el('span', null, group.label));
+    head.append(el('span', 'count', String(group.items.length)));
+    lane.append(head);
+    const list = el('div', 'lane-list');
+    if (!group.items.length) list.append(el('p', 'empty', 'None'));
+    else for (const row of group.items) list.append(rowButton(row));
+    lane.append(list);
+    lanes.append(lane);
   }
+  queueEl.append(meter, lanes);
+  queueEl.querySelector('.row.on')?.scrollIntoView({ block: 'nearest' });
 }
 
 function renderBrief(row, { model } = {}) {
@@ -129,7 +168,7 @@ function renderBrief(row, { model } = {}) {
   ].filter(Boolean).join(' · ');
   if (facts) briefEl.append(el('p', 'meta', facts));
 
-  if (modelReady && !model && row.id && row.id !== 'pasted-email' && !asked.has(row.id)) {
+  if (modelReady && !model && row.id && !asked.has(row.id)) {
     asked.add(row.id);
     briefEl.append(el('p', 'meta', 'Re-checking this verdict with the model…'));
     askModel(row);
@@ -138,7 +177,7 @@ function renderBrief(row, { model } = {}) {
   const actions = el('div', 'actions');
   const ask = el('button', 'ask', modelReady ? 'Re-check with model' : 'Model key not set');
   ask.type = 'button';
-  ask.disabled = !modelReady || row.id === 'pasted-email';
+  ask.disabled = !modelReady;
   ask.addEventListener('click', () => askModel(row));
   actions.append(ask);
   briefEl.append(actions);
@@ -208,7 +247,12 @@ async function askModel(row) {
     briefEl.append(el('p', 'meta', payload.error || 'The model call failed.'));
     return;
   }
-  renderBrief({ ...row, briefing: payload.briefing }, { model: payload.model });
+  const next = { ...row, briefing: payload.briefing };
+  const index = rows.findIndex((item) => item.id === row.id);
+  if (index >= 0) rows[index] = next;
+  rows = sortQueue(rows);
+  renderQueue();
+  renderBrief(next, { model: payload.model });
 }
 
 document.querySelectorAll('.chip').forEach((chip) => {
@@ -232,13 +276,33 @@ document.querySelector('#email-go').addEventListener('click', async () => {
     emailOut.append(el('p', null, payload.error || 'Could not read that message.'));
     return;
   }
-  if (payload.briefing.verification?.note) {
-    emailOut.append(el('p', 'meta', payload.briefing.verification.note));
+  const row = {
+    id: payload.id,
+    source: payload.source,
+    family: payload.family,
+    scenario: payload.scenario || null,
+    phase: payload.phase || null,
+    timestamp: payload.timestamp || null,
+    title: payload.title,
+    host: payload.host || null,
+    src: payload.src || null,
+    dst: payload.dst || null,
+    ruleId: payload.ruleId || payload.briefing.ruleId || null,
+    vendorLevel: payload.vendorLevel ?? null,
+    groups: payload.groups || [],
+    relatedCount: payload.relatedCount || 0,
+    briefing: payload.briefing,
+  };
+  if (filter !== 'all' && filter !== 'email') {
+    filter = 'all';
+    document.querySelectorAll('.chip').forEach((item) => item.classList.toggle('on', item.dataset.filter === 'all'));
   }
-  emailOut.append(el('h3', null, payload.briefing.headline));
-  emailOut.append(el('p', 'summary', payload.briefing.summary));
-  emailOut.append(el('p', null, payload.briefing.whatToDo));
-  renderTeach(emailOut, payload.briefing, payload.model);
+  rows.unshift(row);
+  rows = sortQueue(rows);
+  selected = row.id;
+  renderQueue();
+  renderBrief(row, { model: payload.model });
+  emailOut.append(el('p', 'meta', 'Added to the queue.'));
 });
 
 load().catch((error) => {
