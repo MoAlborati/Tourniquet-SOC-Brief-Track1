@@ -7,44 +7,47 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <a class="skip" href="#queue">Skip to queue</a>
   <header class="top">
-    <div>
-      <p class="eyebrow">Track 1 · AI for the analyst</p>
+    <div class="brand">
       <h1>SOC Brief</h1>
-      <p class="lede">Plain-English triage for IDS alerts, phishing mail, and AI-agent detections. The briefing works with no API key. A model can rewrite the wording; it cannot talk a serious alert down.</p>
+      <p class="tagline"><span class="t t-guard">#rules-first</span> <span class="t t-guard">#ai-can-only-escalate</span> <span class="t t-source" id="mode">#offline</span></p>
     </div>
     <div class="score" id="score" aria-live="polite"></div>
   </header>
 
   <div class="toolbar">
-    <div class="filters" role="tablist">
-      <button type="button" class="chip on" data-filter="all">All</button>
-      <button type="button" class="chip" data-filter="ait">IDS alerts</button>
-      <button type="button" class="chip" data-filter="sentinel">AI agent</button>
-      <button type="button" class="chip" data-filter="email">Mailbox</button>
+    <div class="filters" role="group" aria-label="Alert family">
+      <button type="button" class="chip on" data-filter="all" aria-pressed="true">All</button>
+      <button type="button" class="chip" data-filter="ait" aria-pressed="false">#ids</button>
+      <button type="button" class="chip" data-filter="sentinel" aria-pressed="false">#ai-agent</button>
+      <button type="button" class="chip" data-filter="email" aria-pressed="false">#mailbox</button>
     </div>
-    <p class="hint" id="model-hint"></p>
+    <div class="active" id="active-tag" aria-live="polite"></div>
+    <details class="legend" id="legend">
+      <summary>Legend</summary>
+      <div id="legend-body"></div>
+    </details>
   </div>
 
   <main>
-    <section class="queue" id="queue" aria-label="Alert queue"></section>
-    <article class="brief" id="brief" aria-live="polite"></article>
+    <section class="queue" id="queue" aria-label="Alert queue. Up and down arrows move, Escape clears the tag filter."></section>
+    <article class="brief" id="brief" aria-live="polite" tabindex="-1"></article>
   </main>
 
-  <section class="paste">
-    <h2>Triage a message</h2>
-    <p>Paste an email. The same chain reads it. Nothing is stored.</p>
-    <textarea id="email-text" rows="8" spellcheck="false">From: IT Support &lt;helpdesk@russellmitchell-support.com&gt;
+  <details class="paste">
+    <summary>Triage a pasted email</summary>
+    <textarea id="email-text" rows="7" spellcheck="false" aria-label="Email text">From: IT Support &lt;helpdesk@russellmitchell-support.com&gt;
 Subject: Action required: mailbox will be deleted in 2 hours
 Attachment:
 
 Your mailbox is over quota. Confirm your password at http://russellmitchell-support.com/webmail within 2 hours.</textarea>
-    <button type="button" id="email-go">Brief this email</button>
+    <button type="button" id="email-go">Brief it</button>
     <div id="email-out"></div>
-  </section>
+  </details>
 
   <footer>
-    <p>Sample IDS rows are a curated slice of the AIT Alert Data Set (CC-BY-4.0). The 96&nbsp;MB archive stays out of git. Agent alerts use the SentinelProxy sample shape.</p>
+    <p>#AIT-ADS sample (CC-BY-4.0) · #SentinelProxy sample shape · nothing stored</p>
   </footer>
   <script type="module" src="/app.js"></script>
 </body>
