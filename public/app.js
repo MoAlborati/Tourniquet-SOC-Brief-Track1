@@ -29,6 +29,18 @@ function when(row) {
   return row.timestamp.replace('T', ' ').replace('.000Z', 'Z').slice(0, 19);
 }
 
+const PRIORITY_ORDER = { P1: 0, P2: 1, P3: 2, P4: 3 };
+
+// P1 first so the first card a judge sees is the strongest case. Array.prototype.sort is stable,
+// so ties keep the server's order and the queue is the same on every load.
+function sortQueue(list) {
+  return list
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) => ((PRIORITY_ORDER[a.row.briefing?.priority] ?? 9) - (PRIORITY_ORDER[b.row.briefing?.priority] ?? 9))
+      || (a.index - b.index))
+    .map(({ row }) => row);
+}
+
 async function load() {
   const [health, queue, report] = await Promise.all([
     fetch('/api/health').then((res) => res.json()),
@@ -36,7 +48,7 @@ async function load() {
     fetch('/api/eval').then((res) => res.json()),
   ]);
   modelReady = Boolean(health.model);
-  rows = queue;
+  rows = sortQueue(queue);
   hintEl.textContent = modelReady
     ? 'A model key is configured. Ask it to rewrite a briefing.'
     : 'Offline briefing. Add OPENAI_API_KEY to track1/.env to ask a model.';

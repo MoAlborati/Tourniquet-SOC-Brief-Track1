@@ -8,7 +8,7 @@ Three kinds of item sit in the same queue:
 - **SentinelProxy agent alerts** (the Track 3 shape: MITRE ATLAS, OWASP LLM, block or allow).
 - **Email**, including a password lure and a disk-image attachment.
 
-The briefing is deterministic, so the demo runs with no API key. If `OPENAI_API_KEY` or `LLM_API_KEY` is set, "Ask a model" runs a three-step prompt chain (summarize, triage, explain). The model may rewrite the wording. It cannot lower the disposition. If the reply is not the expected JSON, the screen keeps the offline briefing and does not show the raw reply.
+The briefing is deterministic, so the demo runs with no API key. If `OPENAI_API_KEY` or `LLM_API_KEY` is set, "Ask a model" sends one prompt to the model: the triage prompt. The summarize and explain prompts are built and shown under "Prompt chain" for inspection, but they are not sent to the model. The model may rewrite the wording. It cannot lower the disposition. If the reply is not the expected JSON, the screen keeps the offline briefing and does not show the raw reply.
 
 ## Run
 
@@ -37,6 +37,8 @@ cp .env.example .env
 - **Disposition** — escalate, investigate, monitor, or dismiss.
 - **Needs a human** — escalate and investigate count as a page. Precision and recall are on that split.
 
+When no local rule matches, the briefing falls back on the vendor's own rating: Suricata priority 1, or a Wazuh rule level of 10 or more, becomes investigate/P2 with the reason "vendor severity (no rule matched)". Anything lower stays monitor/P3. The model can raise that, never lower it.
+
 Time windows are not per-alert guilt. A ClamAV update during a quiet hour is still a ClamAV update. The phase is context on the card. The disposition comes from what the log says.
 
 ## Full dataset
@@ -57,8 +59,8 @@ The committed slice is `samples/`. License and citation: [ATTRIBUTION.md](ATTRIB
 | `src/labels.js` | `labels.csv` windows |
 | `src/normalize.js` | Wazuh, Suricata, AMiner, email, and SentinelProxy into one card |
 | `src/signals.js` | Rules a new team can read and edit. Trusted mail domains live at the top. |
-| `src/prompts.js` | Summarize, triage, and explain prompts, plus the disposition floor |
-| `src/chain.js` | Draft first, model second, fallback if the model reply is unusable |
+| `src/prompts.js` | Summarize, triage, and explain prompts (only triage is sent to the model), plus the disposition floor |
+| `src/chain.js` | Draft first, then one triage call to the model, fallback if the model reply is unusable |
 | `public/` | The queue |
 | `server.mjs` | Loopback HTTP, no dependencies |
 
