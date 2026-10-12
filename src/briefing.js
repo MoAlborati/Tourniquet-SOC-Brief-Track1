@@ -1,5 +1,6 @@
 import { phaseLabel } from './labels.js';
 import { collectEvidence, matchSignal } from './signals.js';
+import { buildContract, vendorBump } from './contract.js';
 
 export function phaseNote(card) {
   if (!card.scenario) {
@@ -39,13 +40,29 @@ export function brief(card, { relatedCount = 0 } = {}) {
         status: 'unreviewed',
         note: 'No built-in rule matched. A configured model classifies this alert. Until then it stays on the watch list.',
       };
+  const why = signal.why.filter(Boolean);
+  const bump = vendorBump(card);
+  const contract = buildContract({
+    disposition: signal.disposition,
+    priority: signal.priority,
+    why,
+    bump,
+    ranModel: false,
+  });
   return {
     activity: signal.activity,
     disposition: signal.disposition,
     priority: signal.priority,
+    // Shared UI contract (rules-decided; see src/contract.js). The model path in
+    // applyModel() re-derives these from the final verdict.
+    verdict: contract.verdict,
+    score: contract.score,
+    decidedBy: contract.decidedBy,
+    contract,
+    scoreBump: bump,
     headline: signal.headline,
     summary,
-    why: signal.why.filter(Boolean),
+    why,
     whatToDo: signal.whatToDo,
     explain: signal.explain,
     lesson: signal.explain,
