@@ -34,20 +34,22 @@
       <article id="briefing" class="briefing" aria-live="polite">
         <p class="state">Open an alert to read its briefing.</p>
       </article>
-
-      <section class="paste" aria-label="Check a suspicious email">
-        <h2>Check a suspicious email</h2>
-        <p class="muted">Paste the raw email, headers first, then a blank line, then the body. Nothing is sent outside this machine unless a model key is configured.</p>
-        <form id="paste-form">
-          <label for="email-text" class="sr-only">Raw email</label>
-          <textarea id="email-text" rows="9" spellcheck="false" placeholder="From: billing@example.com&#10;Subject: Your invoice&#10;Attachment: invoice.iso&#10;&#10;Hello, please open the attached invoice."></textarea>
-          <div class="paste-actions">
-            <button type="submit" id="paste-submit">Brief this email</button>
-            <span id="paste-state" class="muted" aria-live="polite"></span>
-          </div>
-        </form>
-      </section>
     </section>
+
+    <aside class="mail-pane" aria-label="Check a suspicious email">
+      <div class="pane-head">
+        <h2>Check a suspicious email</h2>
+      </div>
+      <form id="paste-form" class="paste">
+        <p class="muted">Paste the raw email, headers first, then a blank line, then the body. Nothing leaves this machine unless a model key is configured.</p>
+        <label for="email-text" class="sr-only">Raw email</label>
+        <textarea id="email-text" spellcheck="false" placeholder="From: billing@example.com&#10;Subject: Your invoice&#10;Attachment: invoice.iso&#10;&#10;Hello, please open the attached invoice."></textarea>
+        <div class="paste-actions">
+          <button type="submit" id="paste-submit">Brief this email</button>
+          <span id="paste-state" class="muted" aria-live="polite"></span>
+        </div>
+      </form>
+    </aside>
   </main>
 
   <footer class="foot">

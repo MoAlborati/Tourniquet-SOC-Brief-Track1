@@ -45,6 +45,16 @@ export function parseEmailText(text) {
     headers[last] = headers[last] === undefined ? m[2].trim() : headers[last];
   }
 
+  if (!Object.keys(headers).length) {
+    return {
+      source: 'email',
+      from: 'unknown sender',
+      subject: '(no subject)',
+      attachment: null,
+      body: raw.trim(),
+    };
+  }
+
   return {
     source: 'email',
     from: headers.from || 'unknown sender',

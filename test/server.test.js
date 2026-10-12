@@ -66,6 +66,14 @@ test('parseEmailText never reads header-looking body lines as headers', { skip }
   assert.equal(parsed.body, 'Subject: URGENT wire transfer\nFrom: ceo@example.com\nAttachment: payroll.zip');
 });
 
+test('parseEmailText keeps a pasted note that has no headers', { skip }, () => {
+  const parsed = server.parseEmailText('Hey Alex,\nYour tax return was rejected.\nEdit My Return');
+  assert.equal(parsed.from, 'unknown sender');
+  assert.equal(parsed.subject, '(no subject)');
+  assert.match(parsed.body, /Edit My Return/);
+  assert.match(parsed.body, /Hey Alex/);
+});
+
 test('parseEmailText fills defaults for missing headers', { skip }, () => {
   const parsed = server.parseEmailText('X-Mailer: test\n\nhi there');
   assert.deepEqual(parsed, {

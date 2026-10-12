@@ -77,6 +77,23 @@ test('a lure phrase alone or a disk image alone is not a malware_lure', () => {
   assert.equal(s.disposition, 'investigate');
 });
 
+test('a tax-return login note with no sender address escalates as an account lure', () => {
+  const text = [
+    'Hey Alex,',
+    'It looks like your federal tax return was rejected by the IRS.',
+    'The Primary Taxpayer did not enter a valid Identity Protection Personal Identification Number (IP PIN).',
+    'You can log back into Credit Karma Tax to adjust your return.',
+    'Edit My Return',
+    '-The Credit Karma Tax Team',
+  ].join('\n');
+  const c = card({ kind: 'email', from: 'unknown sender', subject: '(no subject)', body: text });
+  const s = matchSignal(c);
+  assert.equal(s.activity, 'account_lure');
+  assert.equal(s.disposition, 'escalate');
+  assert.match(s.headline, /tax return/);
+  assert.match(s.whatToDo, /Do not click Edit My Return/);
+});
+
 test('macro-enabled documents with an enable-content lure also escalate', () => {
   const c = card({ kind: 'email', from: 'hr@b.test', subject: 'Payroll', body: 'Please enable macros to see your payslip.', attachment: 'payslip.xlsm' });
   assert.equal(matchSignal(c).activity, 'malware_lure');

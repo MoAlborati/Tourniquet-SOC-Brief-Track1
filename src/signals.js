@@ -14,6 +14,7 @@ const CONTAINER_ATTACHMENT = /\.(iso|img|vhdx?)\b/;
 const MACRO_ATTACHMENT = /\.(docm|xlsm|pptm|xlam)\b/;
 const LURE_PHRASE = /enable (content|macros?|editing)/;
 const CREDENTIAL_ASK = /(verify|confirm|re-?enter|update) (your )?(password|account|login|credentials)|password (expires|has expired)/;
+const ACCOUNT_LURE = /log\s*back\s*in|log in to your|sign in to your|edit my return|identity protection|ip pin|tax return was rejected/;
 
 function has(card, pattern) {
   return pattern.test(card.textLower || '');
@@ -94,6 +95,22 @@ const RULES = [
     explain: 'Real IT teams rarely ask for passwords by email. This is the shape of a credential phishing message.',
     why: () => ['The message asks for a password or account confirmation.'],
     whatToDo: 'Check where any link points, warn recipients, and reset the password of anyone who replied or clicked.',
+  },
+  {
+    id: 'email.account_lure',
+    activity: 'account_lure',
+    disposition: 'escalate',
+    test: (card) => card.family === 'email' && has(card, ACCOUNT_LURE),
+    headline: (card) => has(card, /tax return|ip pin|identity protection/)
+      ? 'This email says a tax return was rejected and asks the reader to log back in and edit it.'
+      : 'This email asks the reader to log back in from the message itself.',
+    explain: 'A rejected-return notice with an Edit My Return button is a common way to steal a tax login. The paste has no sender address and no real link, so a genuine Credit Karma note and a copy look the same. Do not use the button either way.',
+    why: () => [
+      'It creates urgency: the IRS rejected the return over an IP PIN.',
+      'It tells the reader to log back into Credit Karma and use Edit My Return.',
+      'There is no From address and no link in the paste, so the button’s destination is unknown.',
+    ],
+    whatToDo: 'Do not click Edit My Return. Open Credit Karma from a bookmark or by typing the address, and check the return there. If the notice is not in the account, treat the email as phishing.',
   },
   {
     id: 'email.routine',
