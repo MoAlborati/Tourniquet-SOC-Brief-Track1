@@ -4,6 +4,10 @@ CrowdStrike x Santa Clara University hackathon. Companion to [`SUBMISSION.md`](S
 write-up + honest metrics) and [`videos/`](videos/) (offline demo recordings). Keep the demo on
 `127.0.0.1`; no API key is needed and no data leaves the machine.
 
+> **Lead with the safety invariant: rules decide every verdict; the LLM can only reword and can
+> NEVER lower a priority.** This is our strongest differentiator — the decision is deterministic and
+> auditable, not an opaque ML score. The model can raise a verdict, never downgrade one.
+
 ## The problem (30 seconds)
 
 A new SOC analyst opens the queue and sees raw Wazuh rule IDs, Suricata signatures, and mail

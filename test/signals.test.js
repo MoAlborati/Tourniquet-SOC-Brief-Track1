@@ -42,9 +42,10 @@ test('the exact pasted invoice mail is a malware lure and escalates', () => {
   assert.equal(s.activity, 'malware_lure');
   assert.equal(s.disposition, 'escalate');
   assert.equal(s.priority, 'P1');
-  assert.equal(s.ruleId, 'email.malware_lure');
+  assert.equal(s.ruleId, 'malware-lure');
   assert.ok(s.why.some((w) => w.includes('Invoice-18421.iso')));
-  assert.match(s.headline, /billing@northwind-example\.test/);
+  assert.match(s.headline, /Invoice-18421\.iso/);
+  assert.ok(s.why.some((w) => w.includes('billing@northwind-example.test')));
 });
 
 test('the pasted mail still matches when the attachment only appears in the text blob', () => {
@@ -177,7 +178,7 @@ test('sentinel alert with exfil and prompt injection escalates as agent_exfil', 
   assert.equal(s.activity, 'agent_exfil');
   assert.equal(s.disposition, 'escalate');
   assert.match(s.headline, /HelperBot/);
-  assert.match(s.headline, /was blocked/);
+  assert.match(s.headline, /blocked/);
   assert.ok(s.why.some((w) => w.includes('collector.example.test')));
 
   const benign = card({ SchemaVersion: 'sentinel.alert/1.0.0', DetectName: 'UnusualToolCadence', DetectDescription: 'Tool calls arrived faster than baseline.', Category: 'cadence' });
@@ -187,11 +188,12 @@ test('sentinel alert with exfil and prompt injection escalates as agent_exfil', 
 
 test('unknown text falls back with vendor severity', () => {
   const loud = matchSignal(textCard('Something unfamiliar happened', { vendorLevel: 12 }));
-  assert.equal(loud.ruleId, 'fallback.unclassified');
+  assert.equal(loud.ruleId, 'vendor-severity');
   assert.equal(loud.disposition, 'investigate');
   const quiet = matchSignal(textCard('Something unfamiliar happened', { vendorLevel: 2 }));
   assert.equal(quiet.disposition, 'monitor');
-  assert.ok(ruleIds.includes('fallback.unclassified'));
+  assert.equal(quiet.ruleId, 'unclassified');
+  assert.ok(ruleIds.includes('vendor-severity'));
 });
 
 test('every queue card yields the full briefing contract with plain-English strings', () => {

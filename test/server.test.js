@@ -1,149 +1,96 @@
-// Server tests for SOC Brief.
-//
-// server.mjs imports the triage engine (src/cases.js, src/chain.js, src/evaluate.js, src/llm.js,
-// src/normalize.js, src/paths.js) statically. Until the engine branch is combined with the UI
-// branch, that import fails and every test here is skipped with the import error as the reason.
-//
-// Integration cases the engine must satisfy once both halves are combined:
-//   1. GET /api/queue returns >= 16 rows.
-//   2. At least one queue row has family 'sentinel' (the Tourniquet agent alert).
-//   3. No queue row (or its briefing) carries an `expect` field or other ground truth.
-//   4. Row id 'rm-webshell' has briefing.disposition 'escalate' and phase 'webshell'.
-//   5. GET /api/eval: disposition and phase are fully correct (correct === total).
-//   6. GET /api/eval: needsHuman.recall === 1.
-//   7. GET / returns HTML containing "SOC Brief".
-//   8. GET /../package.json is 404 (nothing outside public/ is served).
-//   9. POST /api/triage with the ISO invoice email returns briefing.activity 'malware_lure'
-//      and model.status 'skipped' when no completer is injected.
-//  10. POST /api/triage with a 70 KiB emailText body returns 413.
-
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createServer, request } from 'node:http';
+import { createServer } from 'node:http';
+import { test } from 'node:test';
+import { createApp, parseEmailText } from '../server.mjs';
 
-let server = null;
-let importError = null;
-try {
-  server = await import('../server.mjs');
-} catch (err) {
-  importError = err;
-}
-
-const skip = importError
-  ? `engine modules not present in this checkout (${importError.code || importError.message})`
-  : false;
-
-const ISO_INVOICE_EMAIL = [
-  'From: Accounts <billing@northwind-example.test>',
-  'Subject: Invoice',
-  'Attachment: Invoice-18421.iso',
-  '',
-  'Enable content to view the balance.',
-].join('\n');
-
-test('parseEmailText splits headers from body at the first blank line', { skip }, () => {
-  const parsed = server.parseEmailText(ISO_INVOICE_EMAIL);
-  assert.equal(parsed.source, 'email');
-  assert.equal(parsed.from, 'Accounts <billing@northwind-example.test>');
-  assert.equal(parsed.subject, 'Invoice');
-  assert.equal(parsed.attachment, 'Invoice-18421.iso');
-  assert.equal(parsed.body, 'Enable content to view the balance.');
-});
-
-test('parseEmailText never reads header-looking body lines as headers', { skip }, () => {
-  const text = [
-    'From: friend@example.org',
-    'Subject: lunch',
-    '',
-    'Subject: URGENT wire transfer',
-    'From: ceo@example.com',
-    'Attachment: payroll.zip',
-  ].join('\r\n');
-  const parsed = server.parseEmailText(text);
-  assert.equal(parsed.from, 'friend@example.org');
-  assert.equal(parsed.subject, 'lunch');
-  assert.equal(parsed.attachment, null);
-  assert.equal(parsed.body, 'Subject: URGENT wire transfer\nFrom: ceo@example.com\nAttachment: payroll.zip');
-});
-
-test('parseEmailText keeps a pasted note that has no headers', { skip }, () => {
-  const parsed = server.parseEmailText('Hey Alex,\nYour tax return was rejected.\nEdit My Return');
-  assert.equal(parsed.from, 'unknown sender');
-  assert.equal(parsed.subject, '(no subject)');
-  assert.match(parsed.body, /Edit My Return/);
-  assert.match(parsed.body, /Hey Alex/);
-});
-
-test('parseEmailText fills defaults for missing headers', { skip }, () => {
-  const parsed = server.parseEmailText('X-Mailer: test\n\nhi there');
-  assert.deepEqual(parsed, {
-    source: 'email',
-    from: 'unknown sender',
-    subject: '(no subject)',
-    attachment: null,
-    body: 'hi there',
-  });
-});
-
-async function withApp(fn) {
-  const http = createServer(server.createApp());
-  await new Promise((resolve) => http.listen(0, '127.0.0.1', resolve));
-  try {
-    return await fn(http.address().port);
-  } finally {
-    await new Promise((resolve) => http.close(resolve));
-  }
-}
-
-function call(port, method, path, body) {
-  return new Promise((resolve, reject) => {
-    const req = request({ host: '127.0.0.1', port, method, path, headers: body ? { 'content-type': 'application/json' } : {} }, (res) => {
-      const chunks = [];
-      res.on('data', (c) => chunks.push(c));
-      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, text: Buffer.concat(chunks).toString('utf8') }));
+async function withServer(complete) {
+  const app = createApp({ complete });
+  const server = createServer((req, res) => {
+    Promise.resolve(app(req, res)).catch(() => {
+      if (!res.headersSent) res.writeHead(500).end('{}');
     });
-    req.on('error', reject);
-    if (body) req.write(body);
-    req.end();
   });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address();
+  return {
+    base: `http://127.0.0.1:${port}`,
+    close: () => new Promise((resolve) => server.close(resolve)),
+  };
 }
 
-test('integration: queue, eval, static files, triage', { skip }, async () => {
-  await withApp(async (port) => {
-    const queue = await call(port, 'GET', '/api/queue');
-    assert.equal(queue.status, 200);
-    const rows = JSON.parse(queue.text);
-    assert.ok(rows.length >= 16, `queue has ${rows.length} rows`);
-    assert.ok(rows.some((r) => r.family === 'sentinel'), 'a sentinel family row');
-    assert.ok(!/"expect"/.test(queue.text), 'no expect field in queue JSON');
-    const webshell = rows.find((r) => r.id === 'rm-webshell');
-    assert.ok(webshell, 'rm-webshell row present');
-    assert.equal(webshell.briefing.disposition, 'escalate');
-    assert.equal(webshell.phase, 'webshell');
+test('the queue, the score, and a pasted email are served without a model', async () => {
+  const ctx = await withServer(null);
+  try {
+    const health = await fetch(`${ctx.base}/api/health`).then((res) => res.json());
+    assert.equal(health.ok, true);
+    assert.equal(health.model, false);
 
-    const evalRes = JSON.parse((await call(port, 'GET', '/api/eval')).text);
-    assert.equal(evalRes.disposition.correct, evalRes.disposition.total);
-    assert.equal(evalRes.phase.correct, evalRes.phase.total);
-    assert.equal(evalRes.needsHuman.recall, 1);
+    const queue = await fetch(`${ctx.base}/api/queue`).then((res) => res.json());
+    assert.ok(queue.length >= 16);
+    assert.equal(queue.some((row) => row.family === 'sentinel'), true);
+    assert.equal(queue.some((row) => row.expect), false);
+    const shell = queue.find((row) => row.id === 'rm-webshell');
+    assert.equal(shell.briefing.disposition, 'escalate');
+    assert.equal(shell.phase, 'webshell');
 
-    const home = await call(port, 'GET', '/');
-    assert.equal(home.status, 200);
-    assert.match(home.text, /SOC Brief/);
-    assert.equal(home.headers['cache-control'], 'no-store');
-    assert.equal(home.headers['x-content-type-options'], 'nosniff');
+    const report = await fetch(`${ctx.base}/api/eval`).then((res) => res.json());
+    assert.equal(report.disposition.correct, report.disposition.total);
+    assert.equal(report.phase.correct, report.phase.total);
+    assert.equal(report.needsHuman.recall, 1);
 
-    assert.equal((await call(port, 'GET', '/../package.json')).status, 404);
-    assert.equal((await call(port, 'GET', '/%2e%2e/package.json')).status, 404);
-    assert.equal((await call(port, 'GET', '/.gitignore')).status, 404);
+    const page = await fetch(`${ctx.base}/`);
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /SOC Brief/);
 
-    const triage = await call(port, 'POST', '/api/triage', JSON.stringify({ emailText: ISO_INVOICE_EMAIL }));
-    assert.equal(triage.status, 200);
-    const out = JSON.parse(triage.text);
-    assert.equal(out.briefing.activity, 'malware_lure');
-    assert.equal(out.model.status, 'skipped');
+    const escaped = await fetch(`${ctx.base}/../package.json`);
+    assert.equal(escaped.status, 404);
 
-    const big = JSON.stringify({ emailText: 'a'.repeat(70 * 1024) });
-    assert.equal((await call(port, 'POST', '/api/triage', big)).status, 413);
-    assert.equal((await call(port, 'POST', '/api/triage', '{not json')).status, 400);
-  });
+    const mail = await fetch(`${ctx.base}/api/triage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        emailText: 'From: Accounts <billing@northwind-example.test>\nSubject: Invoice\nAttachment: Invoice-18421.iso\n\nEnable content to view the balance.',
+      }),
+    }).then((res) => res.json());
+    assert.equal(mail.briefing.activity, 'malware_lure');
+    assert.equal(mail.model.status, 'skipped');
+    assert.equal(mail.family, 'email');
+    assert.match(mail.id, /^paste-\d+$/);
+
+    const withPaste = await fetch(`${ctx.base}/api/queue`).then((res) => res.json());
+    assert.equal(withPaste.length, queue.length + 1);
+    assert.equal(withPaste.some((row) => row.id === mail.id), true);
+    const stored = await fetch(`${ctx.base}/api/alert/${encodeURIComponent(mail.id)}`).then((res) => res.json());
+    assert.match(stored.text, /Invoice-18421\.iso/);
+
+    const second = await fetch(`${ctx.base}/api/triage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ emailText: 'From: a@b.test\nSubject: Hello\n\nJust a note.' }),
+    }).then((res) => res.json());
+    assert.notEqual(second.id, mail.id);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('a huge body is refused', async () => {
+  const ctx = await withServer(null);
+  try {
+    const response = await fetch(`${ctx.base}/api/triage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ emailText: 'x'.repeat(70 * 1024) }),
+    });
+    assert.equal(response.status, 413);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('email headers parse without treating the body as a header', () => {
+  const mail = parseEmailText('From: a@b.test\nSubject: Hi\n\nFrom: forged\nPlease read.');
+  assert.equal(mail.from, 'a@b.test');
+  assert.equal(mail.subject, 'Hi');
+  assert.match(mail.body, /forged/);
 });

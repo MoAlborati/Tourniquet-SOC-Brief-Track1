@@ -1,7 +1,7 @@
 > **Split from the mono-repo.** This repository is the **Track 1 (AI for SOC Analyst)** deliverable,
-> extracted with `git subtree split --prefix=track1` (history-preserving) from
-> [`shrutidoshi94/AIC-X-Crowdstrike-Hackathon`](https://github.com/shrutidoshi94/AIC-X-Crowdstrike-Hackathon)
-> at tag `v1.0-submission`. The Track 3 (Tourniquet) guardrail lives in that mono-repo / the Track 3 repo.
+> extracted from the `track1/` subtree of the CrowdStrike × Santa Clara hackathon mono-repo. It carries
+> the **latest** SOC Brief engine (teach-the-verdict re-check + severity grouping), kept in sync with the
+> mono-repo's `main`. The Track 3 (Tourniquet) guardrail lives in the Track 3 repo.
 
 # SOC Brief
 
@@ -11,6 +11,10 @@ Analyst) of the CrowdStrike × Santa Clara University hackathon.
 SOC Brief reads an alert and gives you a short briefing: what happened, why it matters, what to do
 next, and whether to **escalate** or **dismiss**. Built-in rules decide every verdict. A language
 model is optional and only rewords the briefing.
+
+> **Safety invariant: rules decide every verdict; the LLM can only reword and can NEVER lower a
+> priority.** The model may agree with a rule or *raise* the verdict; it can never downgrade one and
+> never sets the ground truth. Every decision stays deterministic and auditable.
 
 ## Run it
 
