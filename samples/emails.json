@@ -1,34 +1,34 @@
 [
   {
-    "id": "email-phish",
-    "expect": { "disposition": "escalate", "activity": "phishing", "phase": null },
+    "id": "mail-invoice-iso",
+    "expect": { "phase": null, "disposition": "escalate", "activity": "malware_lure" },
     "record": {
-      "source": "email",
-      "from": "IT Support <helpdesk@russellmitchell-support.com>",
-      "subject": "Action required: mailbox will be deleted in 2 hours",
-      "body": "Your mailbox is over quota and will be deleted today. Sign in within 2 hours and confirm your password at http://russellmitchell-support.com/webmail so we can keep the account.",
-      "attachment": null
-    }
-  },
-  {
-    "id": "email-iso",
-    "expect": { "disposition": "investigate", "activity": "malware_lure", "phase": null },
-    "record": {
-      "source": "email",
+      "kind": "email",
       "from": "Accounts <billing@northwind-example.test>",
-      "subject": "Invoice 18421 overdue",
-      "body": "Please open the attached invoice and enable content to view the balance due.",
+      "subject": "Invoice",
+      "body": "Enable content to view the balance.",
       "attachment": "Invoice-18421.iso"
     }
   },
   {
-    "id": "email-benign",
-    "expect": { "disposition": "dismiss", "activity": "benign_mail", "phase": null },
+    "id": "mail-password-expiry",
+    "expect": { "phase": null, "disposition": "investigate", "activity": "credential_phish" },
     "record": {
-      "source": "email",
-      "from": "Priya Shah <priya.shah@smith.russellmitchell.com>",
-      "subject": "Notes from the Monday standup",
-      "body": "We moved the firewall change window to Thursday 18:00. No action needed unless you own the VPN rule. Notes are on the internal wiki.",
+      "kind": "email",
+      "from": "IT Helpdesk <helpdesk@contoso-support.test>",
+      "subject": "Action required: mailbox password expires today",
+      "body": "Your password expires today. Verify your account at the portal link below to keep access.",
+      "attachment": null
+    }
+  },
+  {
+    "id": "mail-team-lunch",
+    "expect": { "phase": null, "disposition": "dismiss", "activity": "routine_email" },
+    "record": {
+      "kind": "email",
+      "from": "Priya Shah <priya.shah@example.test>",
+      "subject": "Team lunch Friday",
+      "body": "Booking a table for 12:30 on Friday. Reply if you want to join.",
       "attachment": null
     }
   }

@@ -1,0 +1,12 @@
+{
+  "scenario": "russellmitchell",
+  "AnalysisComponentName": "AMiner: High entropy in Apache Access request.",
+  "AnalysisComponentType": "EntropyDetector",
+  "Message": "Value entropy anomaly detected",
+  "RawLogData": "172.19.131.174 - - [24/Jan/2022:04:37:25 +0000] \"GET /wp-content/uploads/2022/01/ekmkimzkps-1642996700.9285.php?wp_meta=[REDACTED:encoded-parameter] HTTP/1.1\" 200 506741 \"-\" \"python-requests/2.27.1\"",
+  "DetectionTimestamp": 1642999045,
+  "LogResources": [
+    "/var/log/apache2/intranet-access.log"
+  ],
+  "host": "10.143.2.4"
+}

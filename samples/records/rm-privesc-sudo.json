@@ -1,0 +1,37 @@
+{
+  "scenario": "russellmitchell",
+  "@timestamp": "2022-01-24T04:37:58.000000Z",
+  "rule": {
+    "id": "5402",
+    "level": 3,
+    "description": "Successful sudo to ROOT executed.",
+    "groups": [
+      "syslog",
+      "sudo"
+    ],
+    "mitre": {
+      "technique": [
+        "Sudo and Sudo Caching"
+      ],
+      "id": [
+        "T1548.003"
+      ],
+      "tactic": [
+        "Privilege Escalation",
+        "Defense Evasion"
+      ]
+    }
+  },
+  "predecoder": {
+    "hostname": "intranet-server"
+  },
+  "full_log": "Jan 24 04:37:58 intranet-server sudo:    jhall : TTY=pts/1 ; PWD=/var/www/intranet.smith.russellmitchell.com/wp-content/uploads/2022/01 ; USER=root ; COMMAND=list",
+  "data": {
+    "srcuser": "jhall",
+    "dstuser": "root",
+    "tty": "pts/1",
+    "pwd": "/var/www/intranet.smith.russellmitchell.com/wp-content/uploads/2022/01",
+    "command": "list"
+  },
+  "location": "/var/log/auth.log"
+}

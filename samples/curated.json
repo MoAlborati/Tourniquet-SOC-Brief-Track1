@@ -1,241 +1,164 @@
 [
   {
-    "id": "rm-clamav",
-    "expect": { "disposition": "dismiss", "activity": "routine_maintenance", "phase": null },
-    "record": {
-      "source": "wazuh",
-      "scenario": "russellmitchell",
-      "@timestamp": "2022-01-21T00:02:27.000000Z",
-      "rule": {
-        "id": "52507",
-        "level": 3,
-        "description": "ClamAV database update",
-        "groups": ["clamd", "freshclam", "virus"]
-      },
-      "full_log": "Jan 21 00:02:27 mail freshclam[31104]: Fri Jan 21 00:02:27 2022 -> ClamAV update process started at Fri Jan 21 00:02:27 2022",
-      "predecoder": { "hostname": "mail", "program_name": "freshclam" },
-      "agent": { "name": "wazuh-client", "id": "18" }
-    }
+    "id": "rm-webshell",
+    "expect": {
+      "phase": "webshell",
+      "disposition": "escalate",
+      "activity": "webshell_command"
+    },
+    "recordPath": "samples/records/rm-webshell.json"
   },
   {
-    "id": "rm-dovecot-ok",
-    "expect": { "disposition": "dismiss", "activity": "benign_login", "phase": null },
-    "record": {
-      "source": "wazuh",
-      "scenario": "russellmitchell",
-      "@timestamp": "2022-01-21T05:20:17.000000Z",
-      "rule": {
-        "id": "9701",
-        "level": 3,
-        "description": "Dovecot Authentication Success.",
-        "groups": ["dovecot", "authentication_success"]
-      },
-      "full_log": "Jan 21 05:20:17 davey-mail dovecot: imap-login: Login: user=<andrea.moss>, method=PLAIN, rip=192.168.231.56, lip=192.168.231.56, mpid=6298, TLS",
-      "predecoder": { "hostname": "davey-mail", "program_name": "dovecot" },
-      "agent": { "name": "wazuh-client", "id": "6" }
-    }
+    "id": "rm-reverse-shell",
+    "expect": {
+      "phase": "reverse_shell",
+      "disposition": "escalate",
+      "activity": "webshell_command"
+    },
+    "recordPath": "samples/records/rm-reverse-shell.json"
   },
   {
-    "id": "rm-pam-fail",
-    "expect": { "disposition": "monitor", "activity": "auth_failure", "phase": null },
-    "record": {
-      "source": "wazuh",
-      "scenario": "russellmitchell",
-      "@timestamp": "2022-01-21T10:30:24.000000Z",
-      "rule": {
-        "id": "5503",
-        "level": 5,
-        "description": "PAM: User login failed.",
-        "groups": ["pam", "syslog", "authentication_failed"]
-      },
-      "full_log": "Jan 21 10:30:24 davey-mail auth: pam_unix(dovecot:auth): authentication failure; logname= uid=0 euid=0 tty=dovecot ruser=andrea.moss rhost=192.168.231.56 user=andrea.moss",
-      "predecoder": { "hostname": "davey-mail", "program_name": "auth" },
-      "agent": { "name": "wazuh-client", "id": "6" }
-    }
+    "id": "rm-privesc-su",
+    "expect": {
+      "phase": "privilege_escalation",
+      "disposition": "escalate",
+      "activity": "web_user_switch"
+    },
+    "recordPath": "samples/records/rm-privesc-su.json"
   },
   {
-    "id": "rm-apt-policy",
-    "expect": { "disposition": "dismiss", "activity": "policy_noise", "phase": null },
-    "record": {
-      "source": "suricata",
-      "scenario": "russellmitchell",
-      "@timestamp": "2022-01-21T00:14:21.351932Z",
-      "rule": {
-        "id": "20100",
-        "level": 8,
-        "description": "First time this IDS alert is generated.",
-        "groups": ["ids", "suricata"]
-      },
-      "full_log": "01/21/2022-00:14:21.351932  [**] [1:2013504:6] ET POLICY GNU/Linux APT User-Agent Outbound likely related to package management [**] [Classification: Not Suspicious Traffic] [Priority: 3] {TCP} 10.143.0.103:44510 -> 91.189.95.85:80",
-      "data": {
-        "src_ip": "10.143.0.103",
-        "dest_ip": "91.189.95.85",
-        "alert": {
-          "signature": "ET POLICY GNU/Linux APT User-Agent Outbound likely related to package management",
-          "category": "Not Suspicious Traffic"
-        }
-      }
-    }
+    "id": "rm-privesc-sudo",
+    "expect": {
+      "phase": "privilege_escalation",
+      "disposition": "escalate",
+      "activity": "privilege_escalation"
+    },
+    "recordPath": "samples/records/rm-privesc-sudo.json"
   },
   {
-    "id": "rm-ssh-scan",
-    "expect": { "disposition": "investigate", "activity": "recon_scan", "phase": "service_scans" },
-    "record": {
-      "source": "wazuh",
-      "scenario": "russellmitchell",
-      "@timestamp": "2022-01-24T03:56:47.000000Z",
-      "rule": {
-        "id": "5706",
-        "level": 6,
-        "description": "sshd: insecure connection attempt (scan).",
-        "groups": ["syslog", "sshd", "recon"]
-      },
-      "full_log": "Jan 24 03:56:47 intranet-server sshd[27751]: Did not receive identification string from 172.19.131.174 port 40876",
-      "predecoder": { "hostname": "intranet-server", "program_name": "sshd" },
-      "srcip": "172.19.131.174"
-    }
+    "id": "rm-cracking-cpu",
+    "expect": {
+      "phase": "cracking",
+      "disposition": "investigate",
+      "activity": "host_cpu_spike"
+    },
+    "recordPath": "samples/records/rm-cracking-cpu.json"
   },
   {
-    "id": "rm-nmap",
-    "expect": { "disposition": "investigate", "activity": "recon_scan", "phase": "service_scans" },
-    "record": {
-      "source": "suricata",
-      "scenario": "russellmitchell",
-      "@timestamp": "2022-01-24T03:57:01.687867Z",
-      "rule": {
-        "id": "86601",
-        "level": 3,
-        "description": "Suricata: Alert - ET SCAN Possible Nmap User-Agent Observed",
-        "groups": ["ids", "suricata"]
-      },
-      "data": {
-        "src_ip": "192.168.230.122",
-        "dest_ip": "172.19.130.68",
-        "alert": {
-          "signature": "ET SCAN Possible Nmap User-Agent Observed",
-          "category": "Web Application Attack",
-          "signature_severity": "Informational"
-        },
-        "http": {
-          "hostname": "gateway.smith.russellmitchell.com",
-          "url": "/sdk",
-          "http_user_agent": "Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)",
-          "status": "403"
-        }
-      }
-    }
+    "id": "rm-nmap-ua",
+    "expect": {
+      "phase": "service_scans",
+      "disposition": "investigate",
+      "activity": "service_scan"
+    },
+    "recordPath": "samples/records/rm-nmap-ua.json"
   },
   {
-    "id": "rm-version-bind",
-    "expect": { "disposition": "investigate", "activity": "recon_scan", "phase": "service_scans" },
-    "record": {
-      "source": "aminer",
-      "scenario": "russellmitchell",
-      "DetectionTimestamp": 1642996613,
-      "AnalysisComponentName": "AMiner: Unusual occurrence frequencies of query records in DNS logs.",
-      "AnalysisComponentType": "FrequencyDetector",
-      "Message": "Frequency anomaly detected",
-      "RawLogData": "Jan 24 03:56:53 dnsmasq[15084]: query[TXT] version.bind from 192.168.230.122",
-      "host": "inet-dns"
-    }
+    "id": "rm-sshd-scan",
+    "expect": {
+      "phase": "service_scans",
+      "disposition": "investigate",
+      "activity": "service_scan"
+    },
+    "recordPath": "samples/records/rm-sshd-scan.json"
   },
   {
     "id": "rm-dirb",
-    "expect": { "disposition": "investigate", "activity": "web_scan", "phase": "dirb" },
-    "record": {
-      "source": "wazuh",
-      "scenario": "russellmitchell",
-      "@timestamp": "2022-01-24T03:57:26.000000Z",
-      "rule": {
-        "id": "31101",
-        "level": 5,
-        "description": "Web server 400 error code.",
-        "groups": ["web", "accesslog", "attack", "web_scan"]
-      },
-      "full_log": "172.19.131.174 - - [24/Jan/2022:03:57:26 +0000] \"GET /.hta HTTP/1.1\" 403 366 \"-\" \"Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)\"",
-      "srcip": "172.19.131.174"
-    }
+    "expect": {
+      "phase": "dirb",
+      "disposition": "investigate",
+      "activity": "web_content_scan"
+    },
+    "recordPath": "samples/records/rm-dirb.json"
   },
   {
     "id": "rm-wpscan",
-    "expect": { "disposition": "investigate", "activity": "web_scan", "phase": "wpscan" },
-    "record": {
-      "source": "wazuh",
-      "scenario": "russellmitchell",
-      "@timestamp": "2022-01-24T03:57:52.000000Z",
-      "rule": {
-        "id": "31101",
-        "level": 5,
-        "description": "Web server 400 error code.",
-        "groups": ["web", "accesslog", "attack"]
-      },
-      "full_log": "172.19.131.174 - - [24/Jan/2022:03:57:52 +0000] \"GET /7f21b6c.html HTTP/1.1\" 404 363 \"https://intranet.smith.russellmitchell.com\" \"WPScan v3.8.20 (https://wpscan.com/wordpress-security-scanner)\"",
-      "srcip": "172.19.131.174",
-      "data": { "http": { "hostname": "intranet.smith.russellmitchell.com" } }
-    }
+    "expect": {
+      "phase": "wpscan",
+      "disposition": "investigate",
+      "activity": "wordpress_scan"
+    },
+    "recordPath": "samples/records/rm-wpscan.json"
   },
   {
-    "id": "rm-webshell",
-    "expect": { "disposition": "escalate", "activity": "webshell", "phase": "webshell" },
-    "record": {
-      "source": "aminer",
-      "scenario": "russellmitchell",
-      "DetectionTimestamp": 1642996754,
-      "AnalysisComponentName": "AMiner: High entropy in Apache Access request.",
-      "AnalysisComponentType": "EntropyDetector",
-      "Message": "Value entropy anomaly detected",
-      "RawLogData": "172.19.131.174 - - [24/Jan/2022:03:59:14 +0000] \"GET /wp-content/uploads/2022/01/ekmkimzkps-1642996700.9285.php?[REDACTED] HTTP/1.1\"",
-      "note": "Query string from the published alert was removed before this sample was committed."
-    }
+    "id": "rm-dovecot-bruteforce",
+    "expect": {
+      "phase": null,
+      "disposition": "investigate",
+      "activity": "password_guessing"
+    },
+    "recordPath": "samples/records/rm-dovecot-bruteforce.json"
   },
   {
-    "id": "rm-su",
-    "expect": { "disposition": "escalate", "activity": "privilege_escalation", "phase": "privilege_escalation" },
-    "record": {
-      "source": "aminer",
-      "scenario": "russellmitchell",
-      "DetectionTimestamp": 1642999060,
-      "AnalysisComponentName": "AMiner: New event type.",
-      "AnalysisComponentType": "NewMatchPathDetector",
-      "Message": "New path(es) detected",
-      "RawLogData": "Jan 24 04:37:40 intranet-server su[27950]: Successful su for jhall by www-data",
-      "host": "intranet-server"
-    }
+    "id": "rm-dovecot-invalid-user",
+    "expect": {
+      "phase": null,
+      "disposition": "monitor",
+      "activity": "failed_login"
+    },
+    "recordPath": "samples/records/rm-dovecot-invalid-user.json"
   },
   {
-    "id": "rm-sudo",
-    "expect": { "disposition": "escalate", "activity": "privilege_escalation", "phase": "privilege_escalation" },
-    "record": {
-      "source": "wazuh",
-      "scenario": "russellmitchell",
-      "@timestamp": "2022-01-24T04:37:58.000000Z",
-      "rule": {
-        "id": "5402",
-        "level": 3,
-        "description": "Successful sudo to ROOT executed.",
-        "groups": ["syslog", "sudo"]
-      },
-      "full_log": "Jan 24 04:37:58 intranet-server sudo:    jhall : TTY=pts/1 ; PWD=/var/www/intranet.smith.russellmitchell.com/wp-content/uploads/2022/01 ; USER=root ; COMMAND=list",
-      "predecoder": { "hostname": "intranet-server", "program_name": "sudo" },
-      "data": {
-        "srcuser": "jhall",
-        "dstuser": "root",
-        "pwd": "/var/www/intranet.smith.russellmitchell.com/wp-content/uploads/2022/01",
-        "command": "list"
-      }
-    }
+    "id": "rm-tls-noise",
+    "expect": {
+      "phase": null,
+      "disposition": "monitor",
+      "activity": "protocol_anomaly"
+    },
+    "recordPath": "samples/records/rm-tls-noise.json"
   },
   {
-    "id": "rm-service-stop",
-    "expect": { "disposition": "investigate", "activity": "service_stop", "phase": "service_stop" },
-    "record": {
-      "source": "aminer",
-      "scenario": "russellmitchell",
-      "DetectionTimestamp": 1643032239.3,
-      "AnalysisComponentName": "AMiner: New service_stop parameter combination in Audit logs.",
-      "AnalysisComponentType": "NewMatchPathValueComboDetector",
-      "Message": "New value combination(s) detected",
-      "RawLogData": "type=SERVICE_STOP msg=audit(1643032239.298:808): pid=1 uid=0 auid=4294967295 ses=4294967295 msg='unit=put comm=\"systemd\" exe=\"/lib/systemd/systemd\" hostname=? addr=? terminal=? res=success'"
-    }
+    "id": "rm-dovecot-ok",
+    "expect": {
+      "phase": null,
+      "disposition": "dismiss",
+      "activity": "routine_login"
+    },
+    "recordPath": "samples/records/rm-dovecot-ok.json"
+  },
+  {
+    "id": "rm-dovecot-ok-dnsteal",
+    "expect": {
+      "phase": "dnsteal",
+      "disposition": "dismiss",
+      "activity": "routine_login"
+    },
+    "recordPath": "samples/records/rm-dovecot-ok-dnsteal.json"
+  },
+  {
+    "id": "rm-clamav-netscan",
+    "expect": {
+      "phase": "network_scans",
+      "disposition": "dismiss",
+      "activity": "av_update"
+    },
+    "recordPath": "samples/records/rm-clamav-netscan.json"
+  },
+  {
+    "id": "fox-dns-entropy",
+    "expect": {
+      "phase": "dnsteal",
+      "disposition": "investigate",
+      "activity": "dns_anomaly"
+    },
+    "recordPath": "samples/records/fox-dns-entropy.json"
+  },
+  {
+    "id": "santos-webshell",
+    "expect": {
+      "phase": "webshell",
+      "disposition": "escalate",
+      "activity": "webshell_command"
+    },
+    "recordPath": "samples/records/santos-webshell.json"
+  },
+  {
+    "id": "santos-su-revshell",
+    "expect": {
+      "phase": "reverse_shell",
+      "disposition": "escalate",
+      "activity": "web_user_switch"
+    },
+    "recordPath": "samples/records/santos-su-revshell.json"
   }
 ]

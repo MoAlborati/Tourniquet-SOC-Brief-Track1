@@ -1,6 +1,8 @@
 import { createServer } from 'node:http';
-import { readFileSync, existsSync, statSync } from 'node:fs';
-import { extname, join, relative, sep } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { dirname, extname, join, normalize as normalizePath, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
 import { buildQueue } from './src/cases.js';
 import { runChain } from './src/chain.js';
 import { evaluate, formatReport } from './src/evaluate.js';
@@ -8,209 +10,188 @@ import { completerFromEnv } from './src/llm.js';
 import { normalize as normalizeAlert } from './src/normalize.js';
 import { root } from './src/paths.js';
 
+const here = dirname(fileURLToPath(import.meta.url));
+const publicDir = join(here, 'public');
 const MAX_BODY = 64 * 1024;
-const PUBLIC = join(root, 'public');
-const TYPES = {
+
+const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
 };
 
+const VIEW_FIELDS = [
+  'id', 'source', 'family', 'scenario', 'phase', 'timestamp', 'title',
+  'host', 'src', 'dst', 'ruleId', 'vendorLevel', 'groups', 'relatedCount',
+];
+
 export function parseEmailText(text) {
-  const lines = String(text || '').split(/\r?\n/);
+  const raw = String(text ?? '').replace(/\r\n?/g, '\n');
+  const lines = raw.split('\n');
+  const blank = lines.findIndex((line) => line.trim() === '');
+  const headerLines = blank === -1 ? lines : lines.slice(0, blank);
+  const bodyLines = blank === -1 ? [] : lines.slice(blank + 1);
+
   const headers = {};
-  let index = 0;
-  for (; index < lines.length; index += 1) {
-    if (!lines[index].trim()) {
-      index += 1;
-      break;
+  let last = null;
+  for (const line of headerLines) {
+    if (/^[ \t]/.test(line) && last) {
+      headers[last] += ' ' + line.trim();
+      continue;
     }
-    const match = lines[index].match(/^([A-Za-z-]+):\s*(.*)$/);
-    if (!match) break;
-    headers[match[1].toLowerCase()] = match[2].trim();
+    const m = /^([A-Za-z0-9-]+):\s*(.*)$/.exec(line);
+    if (!m) continue;
+    last = m[1].toLowerCase();
+    headers[last] = headers[last] === undefined ? m[2].trim() : headers[last];
   }
+
   return {
     source: 'email',
     from: headers.from || 'unknown sender',
     subject: headers.subject || '(no subject)',
     attachment: headers.attachment || null,
-    body: lines.slice(index).join('\n').trim(),
+    body: bodyLines.join('\n').trim(),
   };
 }
 
-function send(res, status, body, type = 'application/json; charset=utf-8') {
-  const payload = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
+function toView(card) {
+  const view = {};
+  for (const key of VIEW_FIELDS) view[key] = card[key] ?? null;
+  view.relatedCount = Number(card.relatedCount ?? 0);
+  return view;
+}
+
+function unwrap(item) {
+  if (item && item.card && typeof item.card === 'object') {
+    return { card: item.card, relatedCount: Number(item.relatedCount ?? 0) };
+  }
+  return { card: item, relatedCount: Number(item?.relatedCount ?? 0) };
+}
+
+function send(res, status, body, headers = {}) {
   res.writeHead(status, {
-    'content-type': type,
     'cache-control': 'no-store',
     'x-content-type-options': 'nosniff',
+    ...headers,
   });
-  res.end(payload);
+  res.end(body);
 }
 
-function viewOf(item) {
-  const { card, relatedCount } = item;
-  return {
-    id: card.id,
-    source: card.source,
-    family: card.family,
-    scenario: card.scenario,
-    phase: card.phase,
-    timestamp: card.timestamp,
-    title: card.title,
-    host: card.host,
-    src: card.src,
-    dst: card.dst,
-    ruleId: card.ruleId,
-    vendorLevel: card.vendorLevel,
-    groups: card.groups,
-    relatedCount,
-  };
+function sendJson(res, status, value) {
+  send(res, status, JSON.stringify(value), { 'content-type': 'application/json; charset=utf-8' });
 }
 
-async function readBody(req) {
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of req) {
-    size += chunk.length;
-    if (size > MAX_BODY) {
-      const error = new Error('body too large');
-      error.status = 413;
-      throw error;
-    }
-    chunks.push(chunk);
-  }
-  if (!chunks.length) return {};
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let tooLarge = false;
+    req.on('data', (chunk) => {
+      if (tooLarge) return;
+      size += chunk.length;
+      if (size > MAX_BODY) {
+        tooLarge = true;
+        chunks.length = 0;
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(tooLarge ? { tooLarge: true } : { text: Buffer.concat(chunks).toString('utf8') }));
+    req.on('error', reject);
+  });
+}
+
+async function serveStatic(res, pathname) {
+  let decoded;
   try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    decoded = decodeURIComponent(pathname);
   } catch {
-    const error = new Error('body must be JSON');
-    error.status = 400;
-    throw error;
+    return sendJson(res, 404, { error: 'not found' });
+  }
+  const rel = decoded === '/' ? 'index.html' : decoded.replace(/^\/+/, '');
+  if (rel.includes('\0') || rel.split(/[\\/]/).some((part) => part.startsWith('.'))) {
+    return sendJson(res, 404, { error: 'not found' });
+  }
+  const file = normalizePath(join(publicDir, rel));
+  if (!file.startsWith(publicDir + sep)) return sendJson(res, 404, { error: 'not found' });
+  const type = CONTENT_TYPES[extname(file)];
+  if (!type) return sendJson(res, 404, { error: 'not found' });
+  try {
+    const data = await readFile(file);
+    return send(res, 200, data, { 'content-type': type });
+  } catch {
+    return sendJson(res, 404, { error: 'not found' });
   }
 }
 
 export function createApp({ queue = buildQueue(), complete = null } = {}) {
-  const byId = new Map(queue.map((item) => [item.card.id, item]));
-  const report = evaluate(queue);
+  const model = typeof complete === 'function';
 
-  return async function app(req, res) {
+  return async function handler(req, res) {
     try {
-      const url = new URL(req.url || '/', 'http://127.0.0.1');
-      const path = url.pathname;
+      const url = new URL(req.url, 'http://127.0.0.1');
+      const { pathname } = url;
 
-      if (req.method === 'GET' && path === '/api/health') {
-        send(res, 200, { ok: true, model: typeof complete === 'function', cases: queue.length });
-        return;
+      if (req.method === 'GET' && pathname === '/api/health') {
+        return sendJson(res, 200, { ok: true, model, cases: queue.length });
       }
-      if (req.method === 'GET' && path === '/api/queue') {
-        const items = [];
+
+      if (req.method === 'GET' && pathname === '/api/queue') {
+        const rows = [];
         for (const item of queue) {
-          const chain = await runChain(item.card, { relatedCount: item.relatedCount });
-          items.push({ ...viewOf(item), briefing: chain.briefing });
+          const { card, relatedCount } = unwrap(item);
+          const view = toView({ ...card, relatedCount });
+          const chain = await runChain(card, { relatedCount, complete });
+          rows.push({ ...view, briefing: chain.briefing });
         }
-        send(res, 200, items);
-        return;
-      }
-      if (req.method === 'GET' && path === '/api/eval') {
-        send(res, 200, report);
-        return;
-      }
-      if (req.method === 'GET' && path === '/api/eval.txt') {
-        send(res, 200, formatReport(report), 'text/plain; charset=utf-8');
-        return;
+        return sendJson(res, 200, rows);
       }
 
-      const promptMatch = path.match(/^\/api\/prompts\/([^/]+)$/);
-      if (req.method === 'GET' && promptMatch) {
-        const item = byId.get(decodeURIComponent(promptMatch[1]));
-        if (!item) return send(res, 404, { error: 'unknown alert' });
-        const chain = await runChain(item.card, { relatedCount: item.relatedCount });
-        send(res, 200, { id: item.card.id, prompts: chain.prompts, briefing: chain.briefing });
-        return;
+      if (req.method === 'GET' && pathname === '/api/eval') {
+        return sendJson(res, 200, await evaluate(queue));
       }
 
-      const alertMatch = path.match(/^\/api\/alert\/([^/]+)$/);
-      if (req.method === 'GET' && alertMatch) {
-        const item = byId.get(decodeURIComponent(alertMatch[1]));
-        if (!item) return send(res, 404, { error: 'unknown alert' });
-        const chain = await runChain(item.card, { relatedCount: item.relatedCount });
-        send(res, 200, {
-          ...viewOf(item),
-          text: item.card.text,
-          email: item.card.email,
-          sentinel: item.card.sentinel,
-          briefing: chain.briefing,
-        });
-        return;
+      if (req.method === 'GET' && pathname === '/api/report') {
+        const report = formatReport(await evaluate(queue));
+        return send(res, 200, report, { 'content-type': 'text/plain; charset=utf-8' });
       }
 
-      if (req.method === 'POST' && path === '/api/triage') {
+      if (pathname === '/api/triage') {
+        if (req.method !== 'POST') return sendJson(res, 405, { error: 'use POST' });
         const body = await readBody(req);
-        if (body.emailText) {
-          const record = parseEmailText(body.emailText);
-          const card = normalizeAlert({ id: 'pasted-email', record }, new Map());
-          const chain = await runChain(card, { complete });
-          send(res, 200, {
-            id: card.id,
-            source: 'email',
-            family: 'email',
-            title: card.title,
-            briefing: chain.briefing,
-            model: chain.model,
-            email: card.email,
-          });
-          return;
+        if (body.tooLarge) return sendJson(res, 413, { error: 'request body is larger than 64 KiB' });
+        let payload;
+        try {
+          payload = JSON.parse(body.text);
+        } catch {
+          return sendJson(res, 400, { error: 'request body must be JSON' });
         }
-        const item = byId.get(body.id);
-        if (!item) return send(res, 404, { error: 'unknown alert' });
-        const chain = await runChain(item.card, { complete, relatedCount: item.relatedCount });
-        send(res, 200, { ...viewOf(item), briefing: chain.briefing, model: chain.model });
-        return;
+        if (!payload || typeof payload.emailText !== 'string' || !payload.emailText.trim()) {
+          return sendJson(res, 400, { error: 'emailText is required' });
+        }
+        const parsed = parseEmailText(payload.emailText);
+        const card = normalizeAlert({ id: 'pasted-email', record: { ...parsed, source: 'email' } }, new Map());
+        const chain = await runChain(card, { relatedCount: 0, complete });
+        return sendJson(res, 200, { briefing: chain.briefing, model: chain.model });
       }
 
-      if (req.method === 'GET') {
-        const file = safePublicFile(path);
-        if (!file) return send(res, 404, { error: 'not found' });
-        send(res, 200, readFileSync(file), TYPES[extname(file)] || 'application/octet-stream');
-        return;
+      if (req.method === 'GET' && !pathname.startsWith('/api/')) {
+        return serveStatic(res, pathname);
       }
 
-      send(res, 405, { error: 'method not allowed' });
-    } catch (error) {
-      send(res, error.status || 500, { error: error.status ? error.message : 'server error' });
+      return sendJson(res, 404, { error: 'not found' });
+    } catch {
+      return sendJson(res, 500, { error: 'internal error' });
     }
   };
 }
 
-function safePublicFile(urlPath) {
-  const requested = (urlPath === '/' ? 'index.html' : urlPath).replace(/^\/+/, '');
-  if (!requested || requested.includes('\0')) return null;
-  const file = join(PUBLIC, requested);
-  const rel = relative(PUBLIC, file);
-  if (rel.startsWith('..') || rel.split(sep).includes('..')) return null;
-  if (!existsSync(file) || !statSync(file).isFile()) return null;
-  return file;
-}
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
-export function start(options = {}) {
-  const port = Number(options.port || process.env.TRACK1_PORT || 8787);
-  const host = '127.0.0.1';
-  const complete = options.complete === undefined ? completerFromEnv(root) : options.complete;
-  const app = createApp({ complete, queue: options.queue });
-  const server = createServer((req, res) => {
-    Promise.resolve(app(req, res)).catch(() => {
-      if (!res.headersSent) send(res, 500, { error: 'server error' });
-    });
+if (isMain) {
+  const port = Number(process.env.PORT) || 8787;
+  const app = createApp({ complete: completerFromEnv(root) });
+  createServer(app).listen(port, '127.0.0.1', () => {
+    console.log(`SOC Brief listening on http://127.0.0.1:${port}`);
   });
-  return new Promise((resolve) => {
-    server.listen(port, host, () => resolve({ server, port, host, url: `http://${host}:${port}/` }));
-  });
-}
-
-if (process.argv[1] && (process.argv[1].endsWith('/server.mjs') || process.argv[1].endsWith('\\server.mjs'))) {
-  const { url } = await start();
-  console.log(`SOC Brief listening on ${url}`);
 }

@@ -1,0 +1,12 @@
+{
+  "scenario": "santos",
+  "AnalysisComponentName": "AMiner: New event type.",
+  "AnalysisComponentType": "NewMatchPathDetector",
+  "Message": "New path(es) detected",
+  "RawLogData": "Jan 17 11:58:17 intranet-server su[20749]: Successful su for gmorgan by www-data",
+  "DetectionTimestamp": 1642420697,
+  "LogResources": [
+    "/var/log/auth.log"
+  ],
+  "host": "192.168.104.155"
+}

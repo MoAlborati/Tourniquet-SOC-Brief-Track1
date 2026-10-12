@@ -1,0 +1,12 @@
+{
+  "scenario": "russellmitchell",
+  "AnalysisComponentName": "AMiner: New event type.",
+  "AnalysisComponentType": "NewMatchPathDetector",
+  "Message": "New path(es) detected",
+  "RawLogData": "Jan 24 04:37:40 intranet-server su[27950]: Successful su for jhall by www-data",
+  "DetectionTimestamp": 1642999060,
+  "LogResources": [
+    "/var/log/auth.log"
+  ],
+  "host": "10.143.2.4"
+}

@@ -1,0 +1,34 @@
+{
+  "scenario": "russellmitchell",
+  "@timestamp": "2022-01-24T09:49:46.000000Z",
+  "rule": {
+    "id": "9751",
+    "level": 10,
+    "description": "Dovecot brute force attack (multiple auth failures).",
+    "groups": [
+      "dovecot",
+      "authentication_failures"
+    ],
+    "mitre": {
+      "technique": [
+        "Brute Force"
+      ],
+      "id": [
+        "T1110"
+      ],
+      "tactic": [
+        "Credential Access"
+      ]
+    }
+  },
+  "predecoder": {
+    "hostname": "mail"
+  },
+  "full_log": "Jan 24 09:49:46 mail dovecot: imap-login: Disconnected (auth failed, 4 attempts in 20 secs): user=<alyssa.hayes>, method=PLAIN, rip=172.19.130.4, lip=172.19.130.4, TLS, session=<vxtc4lDW8tysE4IE>",
+  "data": {
+    "srcuser": "<alyssa.hayes>",
+    "srcip": "172.19.130.4",
+    "dstip": "172.19.130.4"
+  },
+  "location": "/var/log/mail.log"
+}

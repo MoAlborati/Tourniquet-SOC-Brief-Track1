@@ -4,9 +4,7 @@
   "private": true,
   "description": "SOC Brief: plain-English triage for AIT-ADS alerts, phishing mail, and SentinelProxy agent alerts.",
   "type": "module",
-  "engines": {
-    "node": ">=22"
-  },
+  "engines": { "node": ">=22" },
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test \"test/*.test.js\"",

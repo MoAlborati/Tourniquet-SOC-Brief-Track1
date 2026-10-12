@@ -1,0 +1,22 @@
+{
+  "scenario": "russellmitchell",
+  "@timestamp": "2022-01-24T03:57:52.000000Z",
+  "rule": {
+    "id": "31101",
+    "level": 5,
+    "description": "Web server 400 error code.",
+    "groups": [
+      "web",
+      "accesslog",
+      "attack"
+    ]
+  },
+  "full_log": "172.19.131.174 - - [24/Jan/2022:03:57:52 +0000] \"GET /7f21b6c.html HTTP/1.1\" 404 363 \"https://intranet.smith.russellmitchell.com\" \"WPScan v3.8.20 (https://wpscan.com/wordpress-security-scanner)\"",
+  "data": {
+    "protocol": "GET",
+    "srcip": "172.19.131.174",
+    "id": "404",
+    "url": "/7f21b6c.html"
+  },
+  "location": "/var/log/apache2/intranet-access.log"
+}

@@ -1,0 +1,34 @@
+{
+  "scenario": "russellmitchell",
+  "@timestamp": "2022-01-24T03:56:47.000000Z",
+  "rule": {
+    "id": "5706",
+    "level": 6,
+    "description": "sshd: insecure connection attempt (scan).",
+    "groups": [
+      "syslog",
+      "sshd",
+      "recon"
+    ],
+    "mitre": {
+      "technique": [
+        "SSH"
+      ],
+      "id": [
+        "T1021.004"
+      ],
+      "tactic": [
+        "Lateral Movement"
+      ]
+    }
+  },
+  "predecoder": {
+    "hostname": "intranet-server"
+  },
+  "full_log": "Jan 24 03:56:47 intranet-server sshd[27751]: Did not receive identification string from 172.19.131.174 port 40876",
+  "data": {
+    "srcip": "172.19.131.174",
+    "srcport": "40876"
+  },
+  "location": "/var/log/auth.log"
+}

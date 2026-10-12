@@ -1,0 +1,32 @@
+{
+  "scenario": "russellmitchell",
+  "@timestamp": "2022-01-24T03:57:01.687867Z",
+  "rule": {
+    "id": "86601",
+    "level": 3,
+    "description": "Suricata: Alert - ET SCAN Possible Nmap User-Agent Observed",
+    "groups": [
+      "ids",
+      "suricata"
+    ]
+  },
+  "data": {
+    "src_ip": "192.168.230.122",
+    "dest_ip": "172.19.130.68",
+    "dest_port": "80",
+    "proto": "TCP",
+    "app_proto": "http",
+    "alert": {
+      "signature": "ET SCAN Possible Nmap User-Agent Observed",
+      "category": "Web Application Attack",
+      "severity": "1"
+    },
+    "http": {
+      "hostname": "gateway.smith.russellmitchell.com",
+      "url": "/sdk",
+      "http_method": "POST",
+      "http_user_agent": "Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)"
+    }
+  },
+  "location": "/var/log/suricata/eve.json"
+}
