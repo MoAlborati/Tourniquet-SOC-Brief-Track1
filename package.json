@@ -2,11 +2,9 @@
   "name": "track1-soc-brief",
   "version": "1.0.0",
   "private": true,
-  "description": "SOC Brief: plain-English triage for AIT-ADS alerts, phishing mail, and SentinelProxy agent alerts.",
+  "description": "SOC Brief: plain-English triage for AIT-ADS alerts, phishing mail, and Tourniquet agent alerts.",
   "type": "module",
-  "engines": {
-    "node": ">=22"
-  },
+  "engines": { "node": ">=22" },
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test \"test/*.test.js\"",

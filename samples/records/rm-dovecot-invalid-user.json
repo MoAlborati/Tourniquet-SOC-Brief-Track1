@@ -1,0 +1,24 @@
+{
+  "scenario": "russellmitchell",
+  "@timestamp": "2022-01-21T10:30:28.000000Z",
+  "rule": {
+    "id": "9705",
+    "level": 5,
+    "description": "Dovecot Invalid User Login Attempt.",
+    "groups": [
+      "dovecot",
+      "invalid_login",
+      "authentication_failed"
+    ]
+  },
+  "predecoder": {
+    "hostname": "davey-mail"
+  },
+  "full_log": "Jan 21 10:30:28 davey-mail dovecot: imap-login: Disconnected (auth failed, 1 attempts in 4 secs): user=<andrea.moss>, method=PLAIN, rip=192.168.231.56, lip=192.168.231.56, TLS, session=<80JOGxXW1OfAqOc4>",
+  "data": {
+    "srcuser": "<andrea.moss>",
+    "srcip": "192.168.231.56",
+    "dstip": "192.168.231.56"
+  },
+  "location": "/var/log/mail.log"
+}

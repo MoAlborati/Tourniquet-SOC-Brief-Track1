@@ -1,0 +1,12 @@
+{
+  "scenario": "fox",
+  "AnalysisComponentName": "AMiner: High entropy in DNS domain.",
+  "AnalysisComponentType": "EntropyDetector",
+  "Message": "Value entropy anomaly detected",
+  "RawLogData": "Jan 17 09:26:33 dnsmasq[14460]: query[A] youtu.be from 192.168.128.4",
+  "DetectionTimestamp": 1642411593,
+  "LogResources": [
+    "/var/log/dnsmasq.log"
+  ],
+  "host": "192.168.255.254"
+}

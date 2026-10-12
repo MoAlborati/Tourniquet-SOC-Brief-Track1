@@ -1,0 +1,26 @@
+{
+  "scenario": "russellmitchell",
+  "@timestamp": "2022-01-21T05:24:04.476478Z",
+  "rule": {
+    "id": "86601",
+    "level": 3,
+    "description": "Suricata: Alert - SURICATA TLS invalid handshake message",
+    "groups": [
+      "ids",
+      "suricata"
+    ]
+  },
+  "data": {
+    "src_ip": "54.190.2.244",
+    "dest_ip": "192.168.230.4",
+    "dest_port": "44524",
+    "proto": "TCP",
+    "app_proto": "tls",
+    "alert": {
+      "signature": "SURICATA TLS invalid handshake message",
+      "category": "Generic Protocol Command Decode",
+      "severity": "3"
+    }
+  },
+  "location": "/var/log/suricata/eve.json"
+}

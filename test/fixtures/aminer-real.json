@@ -1,0 +1,234 @@
+{
+ "attribution": "AIT Alert Data Set (AIT-ADS), Landauer, Skopik, Wurzenberger, AIT Austrian Institute of Technology. https://doi.org/10.5281/zenodo.8263181. License CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/). Lines copied verbatim from ait_ads.zip except where origin.note says otherwise. See track1/ATTRIBUTION.md.",
+ "alerts": [
+  {
+   "id": "real-wilson-aminer-8785",
+   "origin": {
+    "dataset": "AIT-ADS",
+    "file": "wilson_aminer.json",
+    "line": 8785,
+    "why": "webshell request seen by the AMiner entropy detector",
+    "note": "Webshell query string replaced with [REDACTED]; nothing else changed."
+   },
+   "truth": {
+    "scenario": "wilson",
+    "phase": "webshell"
+   },
+   "record": {
+    "AnalysisComponent": {
+     "AnalysisComponentIdentifier": 6,
+     "AnalysisComponentType": "EntropyDetector",
+     "AnalysisComponentName": "AMiner: High entropy in Apache Access request.",
+     "Message": "Value entropy anomaly detected",
+     "PersistenceFileName": "entropy_request",
+     "TrainingMode": false,
+     "AffectedLogAtomPaths": [
+      "/model/fm/request/request"
+     ],
+     "AffectedLogAtomValues": [
+      "/wp-content/uploads/2022/02/zpinqklqgo-1644232829.6164.php?[REDACTED]"
+     ],
+     "CriticalValue": 0.04495425833681316,
+     "ProbabilityThreshold": 0.05
+    },
+    "LogData": {
+     "RawLogData": [
+      "10.182.193.78 - - [07/Feb/2022:11:20:39 +0000] \"GET /wp-content/uploads/2022/02/zpinqklqgo-1644232829.6164.php?[REDACTED] HTTP/1.1\" 200 506731 \"-\" \"python-requests/2.27.1\""
+     ],
+     "Timestamps": [
+      1644232839
+     ],
+     "DetectionTimestamp": [
+      1644232839
+     ],
+     "LogLinesCount": 1,
+     "LogResources": [
+      "/var/log/apache2/intranet-access.log"
+     ]
+    },
+    "AMiner": {
+     "ID": "172.26.243.167"
+    }
+   }
+  },
+  {
+   "id": "real-shaw-aminer-737",
+   "origin": {
+    "dataset": "AIT-ADS",
+    "file": "shaw_aminer.json",
+    "line": 737,
+    "why": "first in-window wpscan alert from the request-method detector"
+   },
+   "truth": {
+    "scenario": "shaw",
+    "phase": "wpscan"
+   },
+   "record": {
+    "AnalysisComponent": {
+     "AnalysisComponentIdentifier": 5,
+     "AnalysisComponentType": "NewMatchPathValueDetector",
+     "AnalysisComponentName": "AMiner: New request method in Apache Access log.",
+     "Message": "New value(s) detected",
+     "PersistenceFileName": "nmpvd_request_method",
+     "TrainingMode": false,
+     "AffectedLogAtomPaths": [
+      "/model/fm/request/method"
+     ],
+     "AffectedLogAtomValues": [
+      "3"
+     ]
+    },
+    "LogData": {
+     "RawLogData": [
+      "172.24.249.224 - - [29/Jan/2022:14:38:52 +0000] \"HEAD / HTTP/1.1\" 200 232 \"https://intranet.thomasmurray.shaw.info\" \"WPScan v3.8.20 (https://wpscan.com/wordpress-security-scanner)\""
+     ],
+     "Timestamps": [
+      1643467132
+     ],
+     "DetectionTimestamp": [
+      1643467132
+     ],
+     "LogLinesCount": 1,
+     "LogResources": [
+      "/var/log/apache2/intranet-access.log"
+     ]
+    },
+    "AMiner": {
+     "ID": "192.168.188.179"
+    }
+   }
+  },
+  {
+   "id": "real-harrison-aminer-155",
+   "origin": {
+    "dataset": "AIT-ADS",
+    "file": "harrison_aminer.json",
+    "line": 155,
+    "why": "dnsmasq query line with a \"from <ip>\" client"
+   },
+   "truth": {
+    "scenario": "harrison",
+    "phase": null
+   },
+   "record": {
+    "AnalysisComponent": {
+     "AnalysisComponentIdentifier": 31,
+     "AnalysisComponentType": "EventFrequencyDetector",
+     "AnalysisComponentName": "AMiner: Unusual occurrence frequencies of query records in DNS logs.",
+     "Message": "Frequency exceeds range for the first time",
+     "PersistenceFileName": "efd_dns_record",
+     "TrainingMode": true,
+     "AffectedLogAtomPaths": [
+      "/model/type/query/record"
+     ],
+     "AffectedLogAtomValues": [
+      "AAAA"
+     ]
+    },
+    "FrequencyData": {
+     "ExpectedLogAtomValuesFrequency": 19.4,
+     "ExpectedLogAtomValuesFrequencyRange": [
+      0,
+      46
+     ],
+     "LogAtomValuesFrequency": 47,
+     "WindowSize": 3600,
+     "ConfidenceFactor": 0.25
+    },
+    "LogData": {
+     "RawLogData": [
+      "Feb  4 05:29:06 dnsmasq[14453]: query[AAAA] d1zkz3k4cclnv6.cloudfront.net from 172.28.193.59"
+     ],
+     "Timestamps": [
+      1643952546
+     ],
+     "DetectionTimestamp": [
+      1643952546
+     ],
+     "LogLinesCount": 1,
+     "LogResources": [
+      "/var/log/dnsmasq.log"
+     ]
+    },
+    "AMiner": {
+     "ID": "172.28.255.254"
+    }
+   }
+  },
+  {
+   "id": "real-fox-aminer-1",
+   "origin": {
+    "dataset": "AIT-ADS",
+    "file": "fox_aminer.json",
+    "line": 1,
+    "why": "first line of the file, an audit-log event outside every window"
+   },
+   "truth": {
+    "scenario": "fox",
+    "phase": null
+   },
+   "record": {
+    "AnalysisComponent": {
+     "AnalysisComponentIdentifier": 3,
+     "AnalysisComponentType": "NewMatchPathDetector",
+     "AnalysisComponentName": "AMiner: New event type.",
+     "Message": "New path(es) detected",
+     "PersistenceFileName": "nmpd",
+     "TrainingMode": true,
+     "AffectedLogAtomPaths": [
+      "/model/type_str",
+      "/model/type/user_acct",
+      "/model/type/user_acct/msg1_str",
+      "/model/type/user_acct/audit_str",
+      "/model/type/user_acct/time",
+      "/model/type/user_acct/colon_str",
+      "/model/type/user_acct/id",
+      "/model/type/user_acct/pid_str",
+      "/model/type/user_acct/pid",
+      "/model/type/user_acct/uid_str",
+      "/model/type/user_acct/uid",
+      "/model/type/user_acct/auid_str",
+      "/model/type/user_acct/auid",
+      "/model/type/user_acct/ses_str",
+      "/model/type/user_acct/ses",
+      "/model/type/user_acct/msg2_str",
+      "/model/type/user_acct/msg2",
+      "/model/type/user_acct/fm/acct",
+      "/model/type/user_acct/opt",
+      "/model/type/user_acct/terminal_str",
+      "/model/type/user_acct/terminal",
+      "/model/type/user_acct/res_str",
+      "/model/type/user_acct/res",
+      "/model/type/user_acct/opt/opt_seq",
+      "/model/type/user_acct/opt/opt_seq/exe_str",
+      "/model/type/user_acct/opt/opt_seq/exe",
+      "/model/type/user_acct/opt/opt_seq/hostname_str",
+      "/model/type/user_acct/opt/opt_seq/hostname",
+      "/model/type/user_acct/opt/opt_seq/addr_str",
+      "/model/type/user_acct/opt/opt_seq/addr",
+      "/model/type/user_acct/fm/acct/acct_str",
+      "/model/type/user_acct/fm/acct/acct"
+     ]
+    },
+    "LogData": {
+     "RawLogData": [
+      "type=USER_ACCT msg=audit(1642204801.159:657): pid=5790 uid=0 auid=4294967295 ses=4294967295 msg='op=PAM:accounting acct=\"www-data\" exe=\"/usr/sbin/cron\" hostname=? addr=? terminal=cron res=success'"
+     ],
+     "Timestamps": [
+      1642204801.16
+     ],
+     "DetectionTimestamp": [
+      1642204801.16
+     ],
+     "LogLinesCount": 1,
+     "LogResources": [
+      "/var/log/audit/audit.log"
+     ]
+    },
+    "AMiner": {
+     "ID": "172.17.129.140"
+    }
+   }
+  }
+ ]
+}

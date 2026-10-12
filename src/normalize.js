@@ -12,6 +12,28 @@ function asList(value) {
   return Array.isArray(value) ? value.map(String) : [String(value)];
 }
 
+function first(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+// Real AIT-ADS AMiner lines nest their fields: AnalysisComponent.{AnalysisComponentName, ...},
+// LogData.{DetectionTimestamp: [epoch], Timestamps: [epoch], RawLogData: [line]}, AMiner.ID.
+// The curated rows in samples/curated.json are flattened to the top level. Read both.
+function aminerView(record) {
+  const component = record.AnalysisComponent || {};
+  const log = record.LogData || {};
+  return {
+    detected: first(log.DetectionTimestamp) ?? first(log.Timestamps)
+      ?? first(record.DetectionTimestamp) ?? record.epoch,
+    name: component.AnalysisComponentName || record.AnalysisComponentName || '',
+    type: component.AnalysisComponentType || record.AnalysisComponentType || '',
+    message: component.Message || record.Message || '',
+    values: asList(component.AffectedLogAtomValues),
+    raw: asList(log.RawLogData ?? record.RawLogData),
+    aminerId: record.AMiner?.ID ? String(record.AMiner.ID) : null,
+  };
+}
+
 function detectSource(record) {
   const schema = String(record.SchemaVersion || '');
   if (schema.startsWith('sentinel.alert')) return 'sentinel';
@@ -53,7 +75,7 @@ function suricataPriority(record, text) {
   return match ? Number(match[1]) : null;
 }
 
-// SentinelProxy writes the sink as `${type}:${destination}`. When the type is a URL scheme and the
+// Tourniquet writes the sink as `${type}:${destination}`. When the type is a URL scheme and the
 // destination is already a URL, that renders as "http:https://…". Show the URL once.
 function tidyNarrative(text) {
   return String(text || '').replace(/\b(?:https?):(?=https?:\/\/)/gi, '');
@@ -82,6 +104,8 @@ function sentinelView(record) {
     agent: record.Entities?.Agent?.Name || '',
     tool: record.Entities?.ToolCall?.Name || '',
     sink: record.Entities?.Sink?.Destination || '',
+    // Canary is named by id only; the value is never read here, so it can never reach a brief.
+    canary: record.Canary?.Id || null,
   };
 }
 
@@ -135,19 +159,13 @@ export function normalize(item, windows) {
     host = email.from;
     text = blob(email.from, email.subject, email.body, email.attachment);
   } else if (source === 'aminer') {
-    epoch = epochFrom(record.DetectionTimestamp ?? record.epoch);
+    const view = aminerView(record);
+    epoch = epochFrom(view.detected);
     timestamp = epoch == null ? null : new Date(epoch * 1000).toISOString();
-    title = record.AnalysisComponentName || 'AMiner alert';
-    host = record.host || null;
-    text = blob(
-      record.AnalysisComponentName,
-      record.AnalysisComponentType,
-      record.Message,
-      record.RawLogData,
-      record.note,
-    );
-    const raw = String(record.RawLogData || '');
-    const from = raw.match(/\bfrom\s+(\d{1,3}(?:\.\d{1,3}){3})/);
+    title = view.name || 'AMiner alert';
+    host = record.host || view.aminerId || null;
+    text = blob(view.name, view.type, view.message, view.values, view.raw, record.note);
+    const from = view.raw.join('\n').match(/\bfrom\s+(\d{1,3}(?:\.\d{1,3}){3})/);
     if (from) src = from[1];
   } else {
     timestamp = record['@timestamp'] || record.timestamp || null;

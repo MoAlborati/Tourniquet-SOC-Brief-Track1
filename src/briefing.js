@@ -3,7 +3,7 @@ import { collectEvidence, matchSignal } from './signals.js';
 
 export function phaseNote(card) {
   if (!card.scenario) {
-    if (card.family === 'sentinel') return 'This is a SentinelProxy agent alert, not an AIT-ADS IDS row. It has no scenario clock.';
+    if (card.family === 'sentinel') return 'This is a Tourniquet agent alert, not an AIT-ADS IDS row. It has no scenario clock.';
     if (card.family === 'email') return 'Mailbox items are not on the AIT-ADS attack clock.';
     return '';
   }

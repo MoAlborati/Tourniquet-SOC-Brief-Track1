@@ -1,0 +1,19 @@
+{
+  "scenario": "russellmitchell",
+  "@timestamp": "2022-01-24T03:25:14.000000Z",
+  "rule": {
+    "id": "52507",
+    "level": 3,
+    "description": "ClamAV database update",
+    "groups": [
+      "clamd",
+      "freshclam",
+      "virus"
+    ]
+  },
+  "predecoder": {
+    "hostname": "davey-mail"
+  },
+  "full_log": "Jan 24 03:25:14 davey-mail freshclam[29822]: Mon Jan 24 03:25:14 2022 -> ClamAV update process started at Mon Jan 24 03:25:14 2022",
+  "location": "/var/log/syslog"
+}

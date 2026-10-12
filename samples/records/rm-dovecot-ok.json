@@ -1,0 +1,32 @@
+{
+  "scenario": "russellmitchell",
+  "@timestamp": "2022-01-21T05:20:17.000000Z",
+  "rule": {
+    "id": "9701",
+    "level": 3,
+    "description": "Dovecot Authentication Success.",
+    "groups": [
+      "dovecot",
+      "authentication_success"
+    ],
+    "mitre": {
+      "technique": [
+        "Valid Accounts"
+      ],
+      "id": [
+        "T1078"
+      ],
+      "tactic": [
+        "Defense Evasion",
+        "Persistence",
+        "Privilege Escalation",
+        "Initial Access"
+      ]
+    }
+  },
+  "predecoder": {
+    "hostname": "davey-mail"
+  },
+  "full_log": "Jan 21 05:20:17 davey-mail dovecot: imap-login: Login: user=<andrea.moss>, method=PLAIN, rip=192.168.231.56, lip=192.168.231.56, mpid=6298, TLS, session=<b8lFxhDWlObAqOc4>",
+  "location": "/var/log/mail.info"
+}

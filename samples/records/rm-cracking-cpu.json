@@ -1,0 +1,12 @@
+{
+  "scenario": "russellmitchell",
+  "AnalysisComponentName": "AMiner: CPU value out of expected range in monitoring logs.",
+  "AnalysisComponentType": "ValueRangeDetector",
+  "Message": "Value range anomaly detected",
+  "RawLogData": "{\"service\":{\"type\":\"system\"},\"agent\":{\"hostname\":\"intranet-server\",\"name\":\"intranet-server\",\"id\":\"d8e6f857-ec88-4cf5-bc5e-7b72a6fd1e33\",\"ephemeral_id\":\"c6b20ae2-38c0-4ada-8be2-2d607fddf7e9\",\"version\":\"7.13.2\",\"type\":\"metricbeat\"},\"event\":{\"module\":\"system\",\"dataset\":\"system.cpu\",\"duration\":245697},\"@version\":\"1\",\"metricset\":{\"period\":45000,\"name\":\"cpu\"},\"hos…",
+  "DetectionTimestamp": 1642996867.28,
+  "LogResources": [
+    "/var/log/logstash/intranet-server/system.cpu.log"
+  ],
+  "host": "10.143.0.35"
+}
