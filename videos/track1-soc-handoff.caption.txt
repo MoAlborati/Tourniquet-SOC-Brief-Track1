@@ -1,0 +1,1 @@
+Track 1 (SOC Brief) · SHA cb2b7f5 (v1.0-submission) · scripts/soc-handoff.sh: Tourniquet real T4 alerts -> SOC Brief plain-English P1 brief, fully offline (model: none).
