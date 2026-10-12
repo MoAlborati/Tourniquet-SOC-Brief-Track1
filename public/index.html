@@ -7,45 +7,52 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <header class="top">
-    <div>
-      <p class="eyebrow">Track 1 · AI for the analyst</p>
-      <h1>SOC Brief</h1>
-      <p class="lede">Plain-English triage for IDS alerts, phishing mail, and AI-agent detections. The briefing works with no API key. A model can rewrite the wording; it cannot talk a serious alert down.</p>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">&#9673;</span>
+      <div>
+        <h1>SOC Brief</h1>
+        <p class="tagline">Plain-English triage for analysts new to security.</p>
+      </div>
     </div>
-    <div class="score" id="score" aria-live="polite"></div>
+    <p id="score" class="score" aria-live="polite">Loading score&hellip;</p>
   </header>
 
-  <div class="toolbar">
-    <div class="filters" role="tablist">
-      <button type="button" class="chip on" data-filter="all">All</button>
-      <button type="button" class="chip" data-filter="ait">IDS alerts</button>
-      <button type="button" class="chip" data-filter="sentinel">AI agent</button>
-      <button type="button" class="chip" data-filter="email">Mailbox</button>
-    </div>
-    <p class="hint" id="model-hint"></p>
-  </div>
+  <main class="layout">
+    <aside class="queue-pane" aria-label="Alert queue">
+      <div class="pane-head">
+        <h2>Alert queue</h2>
+        <span id="queue-count" class="muted"></span>
+      </div>
+      <ul id="queue" class="queue" role="listbox" aria-label="Alerts"></ul>
+      <p id="queue-state" class="state">Loading alerts&hellip;</p>
+    </aside>
 
-  <main>
-    <section class="queue" id="queue" aria-label="Alert queue"></section>
-    <article class="brief" id="brief" aria-live="polite"></article>
+    <section class="detail-pane" aria-label="Briefing">
+      <article id="briefing" class="briefing" aria-live="polite">
+        <p class="state">Pick an alert on the left to read its briefing.</p>
+      </article>
+
+      <section class="paste" aria-label="Check a suspicious email">
+        <h2>Check a suspicious email</h2>
+        <p class="muted">Paste the raw email, headers first, then a blank line, then the body. Nothing is sent outside this machine unless a model key is configured.</p>
+        <form id="paste-form">
+          <label for="email-text" class="sr-only">Raw email</label>
+          <textarea id="email-text" rows="9" spellcheck="false" placeholder="From: billing@example.com&#10;Subject: Your invoice&#10;Attachment: invoice.iso&#10;&#10;Hello, please open the attached invoice."></textarea>
+          <div class="paste-actions">
+            <button type="submit" id="paste-submit">Brief this email</button>
+            <span id="paste-state" class="muted" aria-live="polite"></span>
+          </div>
+        </form>
+      </section>
+    </section>
   </main>
 
-  <section class="paste">
-    <h2>Triage a message</h2>
-    <p>Paste an email. The same chain reads it. Nothing is stored.</p>
-    <textarea id="email-text" rows="8" spellcheck="false">From: IT Support &lt;helpdesk@russellmitchell-support.com&gt;
-Subject: Action required: mailbox will be deleted in 2 hours
-Attachment:
-
-Your mailbox is over quota. Confirm your password at http://russellmitchell-support.com/webmail within 2 hours.</textarea>
-    <button type="button" id="email-go">Brief this email</button>
-    <div id="email-out"></div>
-  </section>
-
-  <footer>
-    <p>Sample IDS rows are a curated slice of the AIT Alert Data Set (CC-BY-4.0). The 96&nbsp;MB archive stays out of git. Agent alerts use the SentinelProxy sample shape.</p>
+  <footer class="foot">
+    <a href="/api/report" target="_blank" rel="noopener">Full evaluation report</a>
+    <span class="muted">Briefings are decision support. A person makes the final call.</span>
   </footer>
-  <script type="module" src="/app.js"></script>
+
+  <script src="/app.js" type="module"></script>
 </body>
 </html>
