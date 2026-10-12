@@ -77,22 +77,119 @@ async function load() {
   if (current) renderBrief(current);
 }
 
-function rowButton(row) {
-  const button = el('button', `row${row.id === selected ? ' on' : ''}`);
+// Shared decision contract: { verdict, priority, score, why[], decidedBy, tags, bullets }.
+// The backend is adding these to the SAME contract in parallel; until merged we
+// fall back to the existing briefing fields so the queue never breaks.
+const VERDICTS = new Set(['escalate', 'investigate', 'monitor', 'dismiss']);
+
+function verdictOf(briefing) {
+  const raw = String(briefing?.verdict || briefing?.disposition || '').toLowerCase();
+  return VERDICTS.has(raw) ? raw : 'monitor';
+}
+
+// Score 0-100. Use the backend score when present; otherwise derive a stable
+// value from priority so the gauge is always meaningful offline.
+const SCORE_BY_PRIORITY = { P1: 92, P2: 72, P3: 46, P4: 20 };
+function scoreOf(briefing) {
+  const s = briefing?.score;
+  if (typeof s === 'number' && Number.isFinite(s)) return Math.max(0, Math.min(100, Math.round(s)));
+  return SCORE_BY_PRIORITY[briefing?.priority] ?? 40;
+}
+
+// Who decided: rules-only / ai-reworded / ai-escalated / ai-overruled / unreviewed.
+function decidedByOf(briefing, model) {
+  if (briefing?.decidedBy) return String(briefing.decidedBy);
+  if (model?.status === 'model') {
+    if (model.guard === 'raised') return 'ai-escalated';
+    if (model.guard === 'disposition_floor') return 'ai-overruled';
+    return 'ai-reworded';
+  }
+  const status = briefing?.verification?.status;
+  if (status === 'unreviewed') return 'unreviewed';
+  return 'rules-only';
+}
+
+// Hashtag tags. Prefer backend `tags`; otherwise derive a small, bounded set
+// from fields we already have so the hashtags are always visible.
+function tagsOf(row, briefing, model) {
+  const fromBackend = briefing?.tags || row?.tags;
+  if (Array.isArray(fromBackend) && fromBackend.length) {
+    return fromBackend.map((t) => (typeof t === 'string' ? t : t.label)).filter(Boolean).slice(0, 10);
+  }
+  const tags = [];
+  const slug = (v) => String(v).trim().toLowerCase().replace(/[_\s]+/g, '-').replace(/[^a-z0-9.&:-]/g, '');
+  if (briefing?.activity) tags.push(`#${slug(briefing.activity)}`);
+  if (row?.phase) tags.push(`#AIT:${slug(row.phase)}`);
+  if (row?.vendorLevel != null && row.vendorLevel !== '') tags.push(`#vendor:${slug(row.vendorLevel)}`);
+  tags.push(`#${slug(decidedByOf(briefing, model))}`);
+  return tags.slice(0, 10);
+}
+
+function selectRow(row) {
+  selected = row.id;
+  renderQueue();
+  renderBrief(row);
+}
+
+function rowButton(row, model) {
+  const briefing = row.briefing;
+  const priority = briefing.priority || 'P4';
+  const verdict = verdictOf(briefing);
+  const score = scoreOf(briefing);
+  const button = el('button', `row ${priority}${row.id === selected ? ' on' : ''}`);
   button.type = 'button';
-  button.append(el('span', `pri ${row.briefing.priority}`, row.briefing.priority));
-  const text = el('span');
-  text.append(el('strong', null, row.briefing.headline));
+  button.setAttribute('aria-pressed', row.id === selected ? 'true' : 'false');
+
+  const top = el('div', 'card-top');
+  top.append(el('span', `verdict ${verdict}`, verdict));
+  top.append(el('span', `pchip ${priority}`, priority));
+  const scoreWrap = el('div', 'score-wrap');
+  scoreWrap.append(el('span', 'score-num', String(score)));
+  const bar = el('div', `score-bar ${priority}`);
+  const fill = el('i');
+  fill.style.width = `${score}%`;
+  bar.append(fill);
+  bar.setAttribute('role', 'img');
+  bar.setAttribute('aria-label', `threat score ${score} of 100`);
+  scoreWrap.append(bar);
+  top.append(scoreWrap);
+  button.append(top);
+
+  button.append(el('span', 'card-title', briefing.headline));
   const meta = [sourceLabel(row), row.phase ? row.phase.replaceAll('_', ' ') : 'outside attack windows', when(row)]
     .filter(Boolean)
     .join(' · ');
-  text.append(el('small', null, meta));
-  button.append(text);
-  button.addEventListener('click', () => {
-    selected = row.id;
-    renderQueue();
-    renderBrief(row);
-  });
+  button.append(el('span', 'card-meta', meta));
+
+  // Hashtag tags.
+  const tags = tagsOf(row, briefing, model);
+  if (tags.length) {
+    const tagline = el('div', 'tagline');
+    const who = `#${decidedByOf(briefing, model)}`;
+    for (const t of tags) {
+      const isWho = t.toLowerCase() === who.toLowerCase();
+      tagline.append(el('span', `htag${isWho ? ' who' : ''}`, t));
+    }
+    button.append(tagline);
+  }
+
+  // "Why we think so" — inline, not collapsed.
+  const why = Array.isArray(briefing.why) ? briefing.why.filter(Boolean) : [];
+  const bullets = Array.isArray(briefing.bullets) ? briefing.bullets.filter(Boolean) : [];
+  const reasons = why.length ? why : bullets;
+  if (reasons.length || briefing.verification?.note) {
+    const box = el('div', 'why-inline');
+    box.append(el('span', 'why-label', 'Why we think so'));
+    if (reasons.length) {
+      const ul = document.createElement('ul');
+      for (const r of reasons.slice(0, 3)) ul.append(el('li', null, r));
+      box.append(ul);
+    }
+    if (briefing.verification?.note) box.append(el('p', 'vendor-note', briefing.verification.note));
+    button.append(box);
+  }
+
+  button.addEventListener('click', () => selectRow(row));
   return button;
 }
 
@@ -182,7 +279,21 @@ function renderQueue() {
 function renderBrief(row, { model } = {}) {
   briefEl.replaceChildren();
   const kicker = el('div', 'kicker');
-  kicker.append(el('span', `tag ${row.briefing.priority}`, `${row.briefing.priority} ${row.briefing.disposition}`));
+  const verdict = verdictOf(row.briefing);
+  const priority = row.briefing.priority || 'P4';
+  const score = scoreOf(row.briefing);
+  kicker.append(el('span', `verdict ${verdict}`, verdict));
+  kicker.append(el('span', `pchip ${priority}`, priority));
+  const scoreWrap = el('div', 'score-wrap');
+  scoreWrap.append(el('span', 'score-num', String(score)));
+  const bar = el('div', `score-bar ${priority}`);
+  const fill = el('i');
+  fill.style.width = `${score}%`;
+  bar.append(fill);
+  bar.setAttribute('role', 'img');
+  bar.setAttribute('aria-label', `threat score ${score} of 100`);
+  scoreWrap.append(bar);
+  kicker.append(scoreWrap);
   kicker.append(el('span', 'tag', sourceLabel(row)));
   kicker.append(el('span', 'tag', row.briefing.activity.replaceAll('_', ' ')));
   if (model?.status) {
@@ -354,6 +465,25 @@ document.querySelector('#email-go').addEventListener('click', async () => {
   renderQueue();
   renderBrief(row, { model: payload.model });
   emailOut.append(el('p', 'meta', 'Added to the queue.'));
+});
+
+// Keyboard nav: ArrowUp/ArrowDown move the selection through the visible queue,
+// honoring the current band sort and filter.
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+  const tag = document.activeElement?.tagName;
+  if (tag === 'TEXTAREA' || tag === 'INPUT') return;
+  const visible = sortQueue(rows.filter((row) => filter === 'all' || row.family === filter));
+  if (!visible.length) return;
+  event.preventDefault();
+  const current = visible.findIndex((row) => row.id === selected);
+  const delta = event.key === 'ArrowDown' ? 1 : -1;
+  const next = visible[Math.max(0, Math.min(visible.length - 1, (current < 0 ? 0 : current + delta)))];
+  if (next) {
+    selectRow(next);
+    queueEl.querySelector('.row.on')?.scrollIntoView({ block: 'nearest' });
+    queueEl.querySelector('.row.on')?.focus();
+  }
 });
 
 load().catch((error) => {
