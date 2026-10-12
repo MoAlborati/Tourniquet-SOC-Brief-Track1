@@ -1,0 +1,28 @@
+[
+ {
+  "id": "adv-suricata-cobalt-strike",
+  "origin": { "dataset": "advisor input, issue #68 pass #3", "note": "Hand-written in the AIT-ADS Wazuh/Suricata shape. Not from AIT-ADS. No labels.csv phase." },
+  "truth": { "scenario": null, "phase": null, "vendorPriority": 1 },
+  "scenario": null,
+  "record": {
+   "source": "suricata",
+   "@timestamp": "2022-01-24T04:00:00.000000Z",
+   "rule": { "id": "86601", "level": 3, "description": "Suricata: Alert - ET MALWARE Cobalt Strike Beacon Observed", "groups": ["ids", "suricata"] },
+   "full_log": "01/24/2022-04:00:00.000000  [**] [1:2028591:1] ET MALWARE Cobalt Strike Beacon Observed [**] [Classification: A Network Trojan was detected] [Priority: 1] {TCP} 10.0.0.5:49812 -> 203.0.113.9:443",
+   "data": { "src_ip": "10.0.0.5", "dest_ip": "203.0.113.9", "alert": { "signature": "ET MALWARE Cobalt Strike Beacon Observed", "category": "A Network Trojan was detected", "severity": 1 } }
+  }
+ },
+ {
+  "id": "adv-suricata-sqli-union",
+  "origin": { "dataset": "advisor input, issue #68 pass #3", "note": "Hand-written in the AIT-ADS Wazuh/Suricata shape. Not from AIT-ADS. No labels.csv phase." },
+  "truth": { "scenario": null, "phase": null, "vendorPriority": 1 },
+  "scenario": null,
+  "record": {
+   "source": "suricata",
+   "@timestamp": "2022-01-24T04:00:05.000000Z",
+   "rule": { "id": "86601", "level": 3, "description": "Suricata: Alert - ET WEB_SERVER SQL Injection UNION SELECT", "groups": ["ids", "suricata"] },
+   "full_log": "01/24/2022-04:00:05.000000  [**] [1:2006446:13] ET WEB_SERVER SQL Injection UNION SELECT [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.7:51544 -> 10.0.0.9:80",
+   "data": { "src_ip": "198.51.100.7", "dest_ip": "10.0.0.9", "alert": { "signature": "ET WEB_SERVER SQL Injection UNION SELECT", "category": "Web Application Attack", "severity": 1 } }
+  }
+ }
+]
