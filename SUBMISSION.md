@@ -72,7 +72,7 @@ How to read these numbers:
 - **Disposition and activity at 17/17 are in-sample consistency, not accuracy.** The expected values in `samples/curated.json` were written by hand alongside the rules in `src/signals.js`. The score shows that the rules and the answer key agree. It doesn't show how the rules perform on alerts they weren't written against.
 - **The "phase 17/17" line counts 4 non-AIT items (email, SentinelProxy) whose expected phase is simply empty.** The meaningful number is the 13/13 above.
 - **No disposition ground truth exists.** AIT-ADS labels time windows, not per-alert verdicts, so we do not claim a disposition accuracy.
-- **A held-out run on unseen alerts is in a separate PR** (`track1/eval-heldout/`, see #68). It reports how many unseen alerts fall through to `unclassified`.
+- **Held-out run on unseen alerts (PR #101, `track1/eval-heldout/`).** On 15 alerts the rules were not written against (13 verbatim AIT-ADS alerts from the non-curated scenarios, plus the 2 Suricata cases below), phase against `labels.csv` is **12/13**, and **10/15 (67%) fall through to `unclassified`**. Over all 2,610,277 alerts in those scenarios, **83.7% are unclassified**. Phase labelling is 100% for Wazuh and Suricata rows, but **0/43,579 for real AMiner alerts inside a window**: real AMiner records nest their timestamp and log fields, and `src/normalize.js` reads them at the top level.
 
 ### Known misses
 
@@ -95,7 +95,7 @@ These come from the review of PR #79.
 
 1. **Model output has no grounding citations.** The prompt says "Facts you may use, and nothing else," but nothing checks that the model's `summary` or `why` items cite a field from those facts. A planned fix is an `evidence` list of alert IDs or fact keys, with uncited items dropped.
 2. **The prompt cap truncates silently.** `cardForPrompt` cuts `card.text` to 4,000 characters with no marker, and email bodies are bounded only by the 64 KB request limit. Today's largest prompt is about 4.6k characters, so the samples aren't affected, but full-dataset alerts could be. A planned fix is a "[truncated N chars]" marker, a cap on `email.body`, and a `prompt_over_budget` fallback that is logged instead of a silent slice.
-3. **The eval is in-sample.** See "Evaluation". The 17 curated cases were written alongside the rules. The held-out run is in a separate PR.
+3. **The 17-case eval is in-sample, and rule coverage on unseen data is low.** See "Evaluation". On the full non-curated AIT-ADS data, 83.7% of alerts match no rule, and real AMiner alerts get no phase (PR #101).
 4. **Unmatched high-severity alerts are under-prioritized.** See "Known misses". Cobalt Strike and SQL injection UNION SELECT alerts at vendor Priority 1 come back as monitor / P3 "unclassified".
 5. **Only one prompt is sent to the model.** `src/chain.js` sends the triage prompt. The summarize and explain prompts are built and shown on the card, but they are never sent.
 6. **The model path is optional and lightly tested.** The tests mock the completer and cover the disposition floor. No live-model run is part of the scored eval.
