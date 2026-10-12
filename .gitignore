@@ -1,0 +1,5 @@
+# Full AIT-ADS download. ait_ads.zip is about 96 MB. Never commit it.
+data/
+.env
+*.zip
+*.partial

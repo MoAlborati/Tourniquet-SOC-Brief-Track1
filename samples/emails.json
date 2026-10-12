@@ -1,0 +1,35 @@
+[
+  {
+    "id": "email-phish",
+    "expect": { "disposition": "escalate", "activity": "phishing", "phase": null },
+    "record": {
+      "source": "email",
+      "from": "IT Support <helpdesk@russellmitchell-support.com>",
+      "subject": "Action required: mailbox will be deleted in 2 hours",
+      "body": "Your mailbox is over quota and will be deleted today. Sign in within 2 hours and confirm your password at http://russellmitchell-support.com/webmail so we can keep the account.",
+      "attachment": null
+    }
+  },
+  {
+    "id": "email-iso",
+    "expect": { "disposition": "investigate", "activity": "malware_lure", "phase": null },
+    "record": {
+      "source": "email",
+      "from": "Accounts <billing@northwind-example.test>",
+      "subject": "Invoice 18421 overdue",
+      "body": "Please open the attached invoice and enable content to view the balance due.",
+      "attachment": "Invoice-18421.iso"
+    }
+  },
+  {
+    "id": "email-benign",
+    "expect": { "disposition": "dismiss", "activity": "benign_mail", "phase": null },
+    "record": {
+      "source": "email",
+      "from": "Priya Shah <priya.shah@smith.russellmitchell.com>",
+      "subject": "Notes from the Monday standup",
+      "body": "We moved the firewall change window to Thursday 18:00. No action needed unless you own the VPN rule. Notes are on the internal wiki.",
+      "attachment": null
+    }
+  }
+]

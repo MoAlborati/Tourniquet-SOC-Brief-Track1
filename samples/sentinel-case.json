@@ -1,0 +1,5 @@
+{
+  "id": "sample-0001",
+  "expect": { "disposition": "escalate", "activity": "ai_agent_exfil", "phase": null },
+  "recordPath": "samples/sentinel-sample-alert.json"
+}
