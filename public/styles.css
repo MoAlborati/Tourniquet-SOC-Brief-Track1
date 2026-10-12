@@ -228,3 +228,39 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .lane-list { max-height: 18vh; }
   h1 { font-size: 2rem; }
 }
+
+/* Incident grouping: related alerts (shared host + actor + time window) collapsed
+   into one row. Additive; the lane and verdict colors are reused unchanged. */
+.incident {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--p4);
+  border-radius: 10px;
+  background: var(--paper);
+  overflow: hidden;
+}
+.incident.P1 { border-left-color: var(--p1); }
+.incident.P2 { border-left-color: var(--p2); }
+.incident.P3 { border-left-color: var(--p3); }
+.incident > summary {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.incident > summary::-webkit-details-marker { display: none; }
+.incident > summary::before {
+  content: '\25B8';
+  font-size: 0.72em;
+  color: var(--muted);
+  transform: translateY(-1px);
+}
+.incident[open] > summary::before { content: '\25BE'; }
+.incident-count { display: block; }
+.incident > summary small { display: block; color: var(--muted); margin-top: 3px; }
+.incident-members {
+  display: grid;
+  gap: 6px;
+  padding: 0 10px 10px 22px;
+}

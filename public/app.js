@@ -1,3 +1,5 @@
+import { groupIncidents } from './incidents.js';
+
 const queueEl = document.querySelector('#queue');
 const briefEl = document.querySelector('#brief');
 const scoreEl = document.querySelector('#score');
@@ -94,19 +96,66 @@ function rowButton(row) {
   return button;
 }
 
+// A collapsed incident lives in the band of its STRONGEST member priority, so
+// correlating a quiet alert with a loud one can only ever raise where it sits,
+// never bury the loud one in a quieter lane.
+function bandIndexForPriority(priority) {
+  if (priority === 'P1') return 0;
+  if (priority === 'P2') return 1;
+  return 2;
+}
+
+function incidentWindowText(window) {
+  if (!window) return '';
+  const span = Math.round((window.endEpoch - window.startEpoch) / 60);
+  if (!Number.isFinite(span) || span <= 0) return 'same minute';
+  if (span < 60) return `within ${span} min`;
+  return `within ${Math.round(span / 60)} h`;
+}
+
+// Render two or more correlated alerts as one collapsible incident. The header
+// shows the shared host/actor, the time span, and the incident's verdict — the
+// highest among its members (computed in incidents.js, never lowered).
+function incidentBlock(incident) {
+  const box = el('details', `incident ${incident.priority}`);
+  if (incident.members.some((member) => member.id === selected)) box.open = true;
+  const summary = document.createElement('summary');
+  summary.append(el('span', `pri ${incident.priority}`, incident.priority));
+  const text = el('span');
+  text.append(el('strong', 'incident-count', `Incident · ${incident.size} related alerts`));
+  const meta = [
+    incident.host ? `host ${incident.host}` : '',
+    incident.actor && incident.actor !== incident.host ? `actor ${incident.actor}` : '',
+    incidentWindowText(incident.window),
+  ].filter(Boolean).join(' · ');
+  text.append(el('small', null, meta));
+  summary.append(text);
+  box.append(summary);
+  const list = el('div', 'incident-members');
+  for (const member of incident.members) list.append(rowButton(member));
+  box.append(list);
+  return box;
+}
+
 function renderQueue() {
   queueEl.replaceChildren();
   const visible = rows.filter((row) => filter === 'all' || row.family === filter);
-  const groups = BANDS.map((band) => ({ ...band, items: [] }));
-  for (const row of visible) groups[bandIndex(row)].items.push(row);
+  // Deterministic, offline grouping by shared host + actor + time window.
+  const incidents = groupIncidents(visible);
+  const groups = BANDS.map((band) => ({ ...band, entries: [], alertCount: 0 }));
+  for (const incident of incidents) {
+    const band = groups[bandIndexForPriority(incident.priority)];
+    band.entries.push(incident);
+    band.alertCount += incident.size;
+  }
 
   const meter = el('div', 'meter');
   meter.setAttribute('role', 'img');
-  meter.setAttribute('aria-label', groups.map((group) => `${group.items.length} ${group.label.toLowerCase()}`).join(', '));
+  meter.setAttribute('aria-label', groups.map((group) => `${group.alertCount} ${group.label.toLowerCase()}`).join(', '));
   for (const group of groups) {
-    const seg = el('div', `meter-seg ${group.id}${group.items.length ? '' : ' empty'}`, group.items.length ? String(group.items.length) : '');
-    seg.style.flexGrow = String(group.items.length);
-    seg.title = `${group.items.length} ${group.label.toLowerCase()}`;
+    const seg = el('div', `meter-seg ${group.id}${group.alertCount ? '' : ' empty'}`, group.alertCount ? String(group.alertCount) : '');
+    seg.style.flexGrow = String(group.alertCount);
+    seg.title = `${group.alertCount} ${group.label.toLowerCase()}`;
     meter.append(seg);
   }
 
@@ -116,11 +165,13 @@ function renderQueue() {
     lane.setAttribute('aria-label', `${group.label} alerts`);
     const head = el('div', 'lane-head');
     head.append(el('span', null, group.label));
-    head.append(el('span', 'count', String(group.items.length)));
+    head.append(el('span', 'count', String(group.alertCount)));
     lane.append(head);
     const list = el('div', 'lane-list');
-    if (!group.items.length) list.append(el('p', 'empty', 'None'));
-    else for (const row of group.items) list.append(rowButton(row));
+    if (!group.entries.length) list.append(el('p', 'empty', 'None'));
+    else for (const entry of group.entries) {
+      list.append(entry.isIncident ? incidentBlock(entry) : rowButton(entry.members[0]));
+    }
     lane.append(list);
     lanes.append(lane);
   }
