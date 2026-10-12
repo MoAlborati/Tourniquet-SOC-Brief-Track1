@@ -7,6 +7,7 @@ import { evaluate, formatReport } from './src/evaluate.js';
 import { completerFromEnv } from './src/llm.js';
 import { normalize as normalizeAlert } from './src/normalize.js';
 import { root } from './src/paths.js';
+import { bullets, deriveTags } from './src/tags.js';
 
 const MAX_BODY = 64 * 1024;
 const PUBLIC = join(root, 'public');
@@ -109,7 +110,12 @@ export function createApp({ queue = buildQueue(), complete = null } = {}) {
         const items = [];
         for (const item of queue) {
           const chain = await runChain(item.card, { relatedCount: item.relatedCount });
-          items.push({ ...viewOf(item), briefing: chain.briefing });
+          items.push({
+            ...viewOf(item),
+            briefing: chain.briefing,
+            tags: deriveTags(item.card, chain.briefing, { relatedCount: item.relatedCount }),
+            bullets: bullets(chain.briefing),
+          });
         }
         send(res, 200, items);
         return;
@@ -161,13 +167,21 @@ export function createApp({ queue = buildQueue(), complete = null } = {}) {
             briefing: chain.briefing,
             model: chain.model,
             email: card.email,
+            tags: deriveTags(card, chain.briefing, { model: chain.model }),
+            bullets: bullets(chain.briefing),
           });
           return;
         }
         const item = byId.get(body.id);
         if (!item) return send(res, 404, { error: 'unknown alert' });
         const chain = await runChain(item.card, { complete, relatedCount: item.relatedCount });
-        send(res, 200, { ...viewOf(item), briefing: chain.briefing, model: chain.model });
+        send(res, 200, {
+          ...viewOf(item),
+          briefing: chain.briefing,
+          model: chain.model,
+          tags: deriveTags(item.card, chain.briefing, { model: chain.model, relatedCount: item.relatedCount }),
+          bullets: bullets(chain.briefing),
+        });
         return;
       }
 
