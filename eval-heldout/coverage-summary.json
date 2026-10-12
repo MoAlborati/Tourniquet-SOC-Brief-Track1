@@ -1,0 +1,277 @@
+{
+  "scenarios": [
+    "fox",
+    "harrison",
+    "santos",
+    "shaw",
+    "wardbeck",
+    "wheeler",
+    "wilson"
+  ],
+  "limitPerFile": null,
+  "total": {
+    "alerts": 2610277,
+    "unclassified": 2185505,
+    "inWindow": 1752566,
+    "inWindowUnclassified": 1599545,
+    "phaseOk": 2566698,
+    "needsHumanIn": 146359,
+    "needsHumanOut": 10559,
+    "vendorRaised": 10723,
+    "inWindowVendorRaised": 164
+  },
+  "bySource": {
+    "wazuh": {
+      "alerts": 2261326,
+      "unclassified": 1839777,
+      "inWindow": 1703182,
+      "inWindowUnclassified": 1550309,
+      "phaseOk": 2261326,
+      "needsHumanIn": 146248,
+      "needsHumanOut": 10547,
+      "vendorRaised": 10711,
+      "inWindowVendorRaised": 164
+    },
+    "suricata": {
+      "alerts": 297449,
+      "unclassified": 294226,
+      "inWindow": 5805,
+      "inWindowUnclassified": 5657,
+      "phaseOk": 297449,
+      "needsHumanIn": 111,
+      "needsHumanOut": 12,
+      "vendorRaised": 12,
+      "inWindowVendorRaised": 0
+    },
+    "aminer": {
+      "alerts": 51502,
+      "unclassified": 51502,
+      "inWindow": 43579,
+      "inWindowUnclassified": 43579,
+      "phaseOk": 7923,
+      "needsHumanIn": 0,
+      "needsHumanOut": 0,
+      "vendorRaised": 0,
+      "inWindowVendorRaised": 0
+    }
+  },
+  "byPhase": {
+    "outside": {
+      "alerts": 857711,
+      "unclassified": 585960,
+      "inWindow": 0,
+      "inWindowUnclassified": 0,
+      "phaseOk": 857711,
+      "needsHumanIn": 0,
+      "needsHumanOut": 10559,
+      "vendorRaised": 10559,
+      "inWindowVendorRaised": 0
+    },
+    "dnsteal": {
+      "alerts": 7919,
+      "unclassified": 4276,
+      "inWindow": 7919,
+      "inWindowUnclassified": 4276,
+      "phaseOk": 7892,
+      "needsHumanIn": 64,
+      "needsHumanOut": 0,
+      "vendorRaised": 64,
+      "inWindowVendorRaised": 64
+    },
+    "network_scans": {
+      "alerts": 1616,
+      "unclassified": 1370,
+      "inWindow": 1616,
+      "inWindowUnclassified": 1370,
+      "phaseOk": 1562,
+      "needsHumanIn": 15,
+      "needsHumanOut": 0,
+      "vendorRaised": 15,
+      "inWindowVendorRaised": 15
+    },
+    "service_scans": {
+      "alerts": 2213,
+      "unclassified": 1722,
+      "inWindow": 2213,
+      "inWindowUnclassified": 1722,
+      "phaseOk": 1601,
+      "needsHumanIn": 416,
+      "needsHumanOut": 0,
+      "vendorRaised": 11,
+      "inWindowVendorRaised": 11
+    },
+    "wpscan": {
+      "alerts": 49250,
+      "unclassified": 25059,
+      "inWindow": 49250,
+      "inWindowUnclassified": 25059,
+      "phaseOk": 24849,
+      "needsHumanIn": 24154,
+      "needsHumanOut": 0,
+      "vendorRaised": 2,
+      "inWindowVendorRaised": 2
+    },
+    "dirb": {
+      "alerts": 1685619,
+      "unclassified": 1563400,
+      "inWindow": 1685619,
+      "inWindowUnclassified": 1563400,
+      "phaseOk": 1667481,
+      "needsHumanIn": 121636,
+      "needsHumanOut": 0,
+      "vendorRaised": 14,
+      "inWindowVendorRaised": 14
+    },
+    "cracking": {
+      "alerts": 5383,
+      "unclassified": 3313,
+      "inWindow": 5383,
+      "inWindowUnclassified": 3313,
+      "phaseOk": 5261,
+      "needsHumanIn": 52,
+      "needsHumanOut": 0,
+      "vendorRaised": 52,
+      "inWindowVendorRaised": 52
+    },
+    "privilege_escalation": {
+      "alerts": 328,
+      "unclassified": 229,
+      "inWindow": 328,
+      "inWindowUnclassified": 229,
+      "phaseOk": 152,
+      "needsHumanIn": 17,
+      "needsHumanOut": 0,
+      "vendorRaised": 1,
+      "inWindowVendorRaised": 1
+    },
+    "service_stop": {
+      "alerts": 19,
+      "unclassified": 19,
+      "inWindow": 19,
+      "inWindowUnclassified": 19,
+      "phaseOk": 4,
+      "needsHumanIn": 0,
+      "needsHumanOut": 0,
+      "vendorRaised": 0,
+      "inWindowVendorRaised": 0
+    },
+    "webshell": {
+      "alerts": 121,
+      "unclassified": 88,
+      "inWindow": 121,
+      "inWindowUnclassified": 88,
+      "phaseOk": 105,
+      "needsHumanIn": 3,
+      "needsHumanOut": 0,
+      "vendorRaised": 3,
+      "inWindowVendorRaised": 3
+    },
+    "reverse_shell": {
+      "alerts": 98,
+      "unclassified": 69,
+      "inWindow": 98,
+      "inWindowUnclassified": 69,
+      "phaseOk": 80,
+      "needsHumanIn": 2,
+      "needsHumanOut": 0,
+      "vendorRaised": 2,
+      "inWindowVendorRaised": 2
+    }
+  },
+  "topUnclassified": [
+    [
+      "wazuh: Web server 400 error code.",
+      1541095
+    ],
+    [
+      "wazuh: IDS event.",
+      283105
+    ],
+    [
+      "suricata: Suricata: Alert - SURICATA TLS invalid record/traffic",
+      100641
+    ],
+    [
+      "suricata: Suricata: Alert - SURICATA TLS invalid handshake message",
+      100620
+    ],
+    [
+      "suricata: Suricata: Alert - ET INFO Observed DNS Query to .biz TLD",
+      91752
+    ],
+    [
+      "aminer: AMiner alert",
+      51502
+    ],
+    [
+      "wazuh: Multiple IDS alerts for same id.",
+      6776
+    ],
+    [
+      "wazuh: Multiple IDS events from same source ip.",
+      2264
+    ],
+    [
+      "wazuh: Suspicious URL access.",
+      1473
+    ],
+    [
+      "wazuh: Multiple IDS alerts for same id (ignoring now this id).",
+      1457
+    ],
+    [
+      "wazuh: Apache: Attempt to access forbidden file or directory.",
+      1212
+    ],
+    [
+      "wazuh: Common web attack.",
+      728
+    ],
+    [
+      "wazuh: First time this IDS alert is generated.",
+      510
+    ],
+    [
+      "suricata: Suricata: Alert - ET INFO Observed DNS Query to .cloud TLD",
+      455
+    ],
+    [
+      "wazuh: CMS (WordPress or Joomla) login attempt.",
+      381
+    ]
+  ],
+  "topVendorRaised": [
+    [
+      "wazuh: Multiple IDS alerts for same id.",
+      6776
+    ],
+    [
+      "wazuh: Multiple IDS events from same source ip.",
+      2264
+    ],
+    [
+      "wazuh: Multiple IDS alerts for same id (ignoring now this id).",
+      1457
+    ],
+    [
+      "wazuh: Multiple IDS events from same source ip (ignoring now this srcip and id).",
+      202
+    ],
+    [
+      "suricata: Suricata: Alert - ET INFO Session Traversal Utilities for NAT (STUN Binding Request)",
+      10
+    ],
+    [
+      "wazuh: First time this IDS alert is generated.",
+      6
+    ],
+    [
+      "wazuh: IDS event.",
+      6
+    ],
+    [
+      "suricata: Suricata: Alert - ET INFO Session Traversal Utilities for NAT (STUN Binding Response)",
+      2
+    ]
+  ]
+}

@@ -1,0 +1,916 @@
+[
+ {
+  "id": "ho-fox-wazuh-network_scans",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "fox_wazuh.json",
+   "line": 35460,
+   "windowAlerts": 323,
+   "why": "median alert in the labeled window"
+  },
+  "truth": {
+   "scenario": "fox",
+   "phase": "network_scans"
+  },
+  "scenario": "fox",
+  "record": {
+   "predecoder": {
+    "timestamp": "01/18/2022-12:07:06.820318"
+   },
+   "agent": {
+    "ip": "172.17.130.196",
+    "name": "wazuh-client",
+    "id": "19"
+   },
+   "manager": {
+    "name": "wazuh.manager"
+   },
+   "data": {
+    "srcip": "172.17.130.196",
+    "dstip": "54.242.166.83:443",
+    "id": "1:2230003:1"
+   },
+   "rule": {
+    "firedtimes": 101,
+    "mail": false,
+    "level": 6,
+    "description": "IDS event.",
+    "groups": [
+     "ids"
+    ],
+    "id": "20101"
+   },
+   "decoder": {
+    "parent": "snort",
+    "name": "snort"
+   },
+   "full_log": "01/18/2022-12:07:06.820318  [**] [1:2230003:1] SURICATA TLS invalid handshake message [**] [Classification: Generic Protocol Command Decode] [Priority: 3] {TCP} 172.17.130.196:57212 -> 54.242.166.83:443",
+   "input": {
+    "type": "log"
+   },
+   "@timestamp": "2022-01-18T12:07:06.820318Z",
+   "location": "/var/log/suricata/fast.log",
+   "id": "1686440867.6860857"
+  }
+ },
+ {
+  "id": "ho-harrison-wazuh-service_scans",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "harrison_wazuh.json",
+   "line": 152660,
+   "windowAlerts": 769,
+   "why": "median alert in the labeled window"
+  },
+  "truth": {
+   "scenario": "harrison",
+   "phase": "service_scans"
+  },
+  "scenario": "harrison",
+  "record": {
+   "agent": {
+    "ip": "192.168.128.1",
+    "name": "wazuh-client",
+    "id": "27"
+   },
+   "data": {
+    "srcip": "52.71.73.162",
+    "dstip": "172.28.192.4:32890",
+    "id": "1:2230010:1"
+   },
+   "rule": {
+    "firedtimes": 137,
+    "mail": false,
+    "level": 6,
+    "description": "IDS event.",
+    "groups": [
+     "ids"
+    ],
+    "id": "20101"
+   },
+   "full_log": "02/08/2022-07:24:48.378061  [**] [1:2230010:1] SURICATA TLS invalid record/traffic [**] [Classification: Generic Protocol Command Decode] [Priority: 3] {TCP} 52.71.73.162:443 -> 172.28.192.4:32890",
+   "id": "1687025347.30341129",
+   "predecoder": {
+    "timestamp": "02/08/2022-07:24:48.378061"
+   },
+   "manager": {
+    "name": "wazuh.manager"
+   },
+   "decoder": {
+    "parent": "snort",
+    "name": "snort"
+   },
+   "input": {
+    "type": "log"
+   },
+   "@timestamp": "2022-02-08T07:24:48.378061Z",
+   "location": "/var/log/suricata/fast.log",
+   "GeoLocation": {
+    "city_name": "Ashburn",
+    "country_name": "United States",
+    "region_name": "Virginia",
+    "location": {
+     "lon": -77.4728,
+     "lat": 39.0481
+    }
+   }
+  }
+ },
+ {
+  "id": "ho-santos-wazuh-dirb",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "santos_wazuh.json",
+   "line": 110372,
+   "windowAlerts": 4459,
+   "why": "median alert in the labeled window"
+  },
+  "truth": {
+   "scenario": "santos",
+   "phase": "dirb"
+  },
+  "scenario": "santos",
+  "record": {
+   "agent": {
+    "ip": "192.168.104.155",
+    "name": "wazuh-client",
+    "id": "26"
+   },
+   "manager": {
+    "name": "wazuh.manager"
+   },
+   "data": {
+    "protocol": "GET",
+    "srcip": "172.21.128.119",
+    "id": "404",
+    "url": "/incl"
+   },
+   "rule": {
+    "firedtimes": 1826,
+    "mail": false,
+    "level": 5,
+    "pci_dss": [
+     "6.5",
+     "11.4"
+    ],
+    "tsc": [
+     "CC6.6",
+     "CC7.1",
+     "CC8.1",
+     "CC6.1",
+     "CC6.8",
+     "CC7.2",
+     "CC7.3"
+    ],
+    "description": "Web server 400 error code.",
+    "groups": [
+     "web",
+     "accesslog",
+     "attack"
+    ],
+    "id": "31101",
+    "nist_800_53": [
+     "SA.11",
+     "SI.4"
+    ],
+    "gdpr": [
+     "IV_35.7.d"
+    ]
+   },
+   "decoder": {
+    "name": "web-accesslog"
+   },
+   "full_log": "172.21.128.119 - - [17/Jan/2022:11:22:07 +0000] \"GET /incl HTTP/1.1\" 404 363 \"-\" \"Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)\"",
+   "input": {
+    "type": "log"
+   },
+   "@timestamp": "2022-01-17T11:22:07.000000Z",
+   "location": "/var/log/apache2/intranet-access.log",
+   "id": "1687475514.11439993"
+  }
+ },
+ {
+  "id": "ho-shaw-wazuh-wpscan",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "shaw_wazuh.json",
+   "line": 44691,
+   "windowAlerts": 927,
+   "why": "median alert in the labeled window"
+  },
+  "truth": {
+   "scenario": "shaw",
+   "phase": "wpscan"
+  },
+  "scenario": "shaw",
+  "record": {
+   "agent": {
+    "ip": "192.168.188.179",
+    "name": "wazuh-client",
+    "id": "21"
+   },
+   "manager": {
+    "name": "wazuh.manager"
+   },
+   "data": {
+    "protocol": "HEAD",
+    "srcip": "172.24.249.224",
+    "id": "404",
+    "url": "/wp-config.php.backup"
+   },
+   "rule": {
+    "firedtimes": 449,
+    "mail": false,
+    "level": 5,
+    "pci_dss": [
+     "6.5",
+     "11.4"
+    ],
+    "tsc": [
+     "CC6.6",
+     "CC7.1",
+     "CC8.1",
+     "CC6.1",
+     "CC6.8",
+     "CC7.2",
+     "CC7.3"
+    ],
+    "description": "Web server 400 error code.",
+    "groups": [
+     "web",
+     "accesslog",
+     "attack"
+    ],
+    "id": "31101",
+    "nist_800_53": [
+     "SA.11",
+     "SI.4"
+    ],
+    "gdpr": [
+     "IV_35.7.d"
+    ]
+   },
+   "decoder": {
+    "name": "web-accesslog"
+   },
+   "full_log": "172.24.249.224 - - [29/Jan/2022:14:38:59 +0000] \"HEAD /wp-config.php.backup HTTP/1.1\" 404 146 \"https://intranet.thomasmurray.shaw.info\" \"WPScan v3.8.20 (https://wpscan.com/wordpress-security-scanner)\"",
+   "input": {
+    "type": "log"
+   },
+   "@timestamp": "2022-01-29T14:38:59.000000Z",
+   "location": "/var/log/apache2/intranet-access.log",
+   "id": "1688161348.6878930"
+  }
+ },
+ {
+  "id": "ho-wardbeck-wazuh-webshell",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "wardbeck_wazuh.json",
+   "line": 79616,
+   "windowAlerts": 13,
+   "why": "median alert in the labeled window"
+  },
+  "truth": {
+   "scenario": "wardbeck",
+   "phase": "webshell"
+  },
+  "scenario": "wardbeck",
+  "record": {
+   "predecoder": {
+    "timestamp": "01/23/2022-12:12:33.375606"
+   },
+   "agent": {
+    "ip": "10.132.56.81",
+    "name": "wazuh-client",
+    "id": "24"
+   },
+   "manager": {
+    "name": "wazuh.manager"
+   },
+   "data": {
+    "srcip": "10.132.56.171",
+    "dstip": "10.132.56.81:60254",
+    "id": "1:2230010:1"
+   },
+   "rule": {
+    "firedtimes": 219,
+    "mail": false,
+    "level": 6,
+    "description": "IDS event.",
+    "groups": [
+     "ids"
+    ],
+    "id": "20101"
+   },
+   "decoder": {
+    "parent": "snort",
+    "name": "snort"
+   },
+   "full_log": "01/23/2022-12:12:33.375606  [**] [1:2230010:1] SURICATA TLS invalid record/traffic [**] [Classification: Generic Protocol Command Decode] [Priority: 3] {TCP} 10.132.56.171:465 -> 10.132.56.81:60254",
+   "input": {
+    "type": "log"
+   },
+   "@timestamp": "2022-01-23T12:12:33.375606Z",
+   "location": "/var/log/suricata/fast.log",
+   "id": "1688761397.10030582"
+  }
+ },
+ {
+  "id": "ho-wilson-wazuh-cracking",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "wilson_wazuh.json",
+   "line": 580688,
+   "windowAlerts": 1284,
+   "why": "median alert in the labeled window"
+  },
+  "truth": {
+   "scenario": "wilson",
+   "phase": "cracking"
+  },
+  "scenario": "wilson",
+  "record": {
+   "predecoder": {
+    "hostname": "lane-mail",
+    "program_name": "dovecot",
+    "timestamp": "Feb  7 11:32:21"
+   },
+   "agent": {
+    "ip": "192.168.226.198",
+    "name": "wazuh-client",
+    "id": "15"
+   },
+   "manager": {
+    "name": "wazuh.manager"
+   },
+   "rule": {
+    "mail": false,
+    "level": 3,
+    "pci_dss": [
+     "10.2.5"
+    ],
+    "hipaa": [
+     "164.312.b"
+    ],
+    "tsc": [
+     "CC6.8",
+     "CC7.2",
+     "CC7.3"
+    ],
+    "description": "Dovecot Authentication Success.",
+    "groups": [
+     "dovecot",
+     "authentication_success"
+    ],
+    "nist_800_53": [
+     "AU.14",
+     "AC.7"
+    ],
+    "gdpr": [
+     "IV_32.2"
+    ],
+    "firedtimes": 459,
+    "mitre": {
+     "technique": [
+      "Valid Accounts"
+     ],
+     "id": [
+      "T1078"
+     ],
+     "tactic": [
+      "Defense Evasion",
+      "Persistence",
+      "Privilege Escalation",
+      "Initial Access"
+     ]
+    },
+    "id": "9701",
+    "gpg13": [
+     "7.1",
+     "7.2"
+    ]
+   },
+   "decoder": {
+    "parent": "dovecot",
+    "name": "dovecot"
+   },
+   "full_log": "Feb  7 11:32:21 lane-mail dovecot: imap-login: Login: user=<shelby.webster>, method=PLAIN, rip=192.168.226.198, lip=192.168.226.198, mpid=29891, TLS, session=<Xpkl9GvXkLTAqOLG>",
+   "input": {
+    "type": "log"
+   },
+   "@timestamp": "2022-02-07T11:32:21.000000Z",
+   "location": "/var/log/syslog",
+   "id": "1690058429.310108157"
+  }
+ },
+ {
+  "id": "ho-wilson-wazuh-reverse_shell",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "wilson_wazuh.json",
+   "line": 581340,
+   "windowAlerts": 20,
+   "why": "median alert in the labeled window"
+  },
+  "truth": {
+   "scenario": "wilson",
+   "phase": "reverse_shell"
+  },
+  "scenario": "wilson",
+  "record": {
+   "predecoder": {
+    "hostname": "wilsonahmed-mail",
+    "program_name": "dovecot",
+    "timestamp": "Feb  7 11:48:08"
+   },
+   "agent": {
+    "ip": "192.168.224.185",
+    "name": "wazuh-client",
+    "id": "31"
+   },
+   "manager": {
+    "name": "wazuh.manager"
+   },
+   "rule": {
+    "mail": false,
+    "level": 3,
+    "pci_dss": [
+     "10.2.5"
+    ],
+    "hipaa": [
+     "164.312.b"
+    ],
+    "tsc": [
+     "CC6.8",
+     "CC7.2",
+     "CC7.3"
+    ],
+    "description": "Dovecot Authentication Success.",
+    "groups": [
+     "dovecot",
+     "authentication_success"
+    ],
+    "nist_800_53": [
+     "AU.14",
+     "AC.7"
+    ],
+    "gdpr": [
+     "IV_32.2"
+    ],
+    "firedtimes": 739,
+    "mitre": {
+     "technique": [
+      "Valid Accounts"
+     ],
+     "id": [
+      "T1078"
+     ],
+     "tactic": [
+      "Defense Evasion",
+      "Persistence",
+      "Privilege Escalation",
+      "Initial Access"
+     ]
+    },
+    "id": "9701",
+    "gpg13": [
+     "7.1",
+     "7.2"
+    ]
+   },
+   "decoder": {
+    "parent": "dovecot",
+    "name": "dovecot"
+   },
+   "full_log": "Feb  7 11:48:08 wilsonahmed-mail dovecot: imap-login: Login: user=<stephanie.franco>, method=PLAIN, rip=192.168.224.185, lip=192.168.224.185, mpid=27681, TLS, session=<KEuWLGzXPtTAqOC5>",
+   "input": {
+    "type": "log"
+   },
+   "@timestamp": "2022-02-07T11:48:08.000000Z",
+   "location": "/var/log/mail.info",
+   "id": "1690059377.310715990"
+  }
+ },
+ {
+  "id": "ho-fox-wazuh-privilege_escalation",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "fox_wazuh.json",
+   "line": 447153,
+   "windowAlerts": 10,
+   "why": "median alert in the labeled window"
+  },
+  "truth": {
+   "scenario": "fox",
+   "phase": "privilege_escalation"
+  },
+  "scenario": "fox",
+  "record": {
+   "predecoder": {
+    "hostname": "intranet-server",
+    "program_name": "sudo",
+    "timestamp": "Jan 18 13:14:43"
+   },
+   "agent": {
+    "ip": "10.35.35.206",
+    "name": "wazuh-client",
+    "id": "27"
+   },
+   "manager": {
+    "name": "wazuh.manager"
+   },
+   "data": {
+    "dstuser": "root"
+   },
+   "rule": {
+    "firedtimes": 1,
+    "mail": false,
+    "level": 3,
+    "pci_dss": [
+     "10.2.5"
+    ],
+    "hipaa": [
+     "164.312.b"
+    ],
+    "tsc": [
+     "CC6.8",
+     "CC7.2",
+     "CC7.3"
+    ],
+    "description": "PAM: Login session closed.",
+    "groups": [
+     "pam",
+     "syslog"
+    ],
+    "id": "5502",
+    "nist_800_53": [
+     "AU.14",
+     "AC.7"
+    ],
+    "gpg13": [
+     "7.8",
+     "7.9"
+    ],
+    "gdpr": [
+     "IV_32.2"
+    ]
+   },
+   "decoder": {
+    "parent": "pam",
+    "name": "pam"
+   },
+   "full_log": "Jan 18 13:14:43 intranet-server sudo: pam_unix(sudo:session): session closed for user root",
+   "input": {
+    "type": "log"
+   },
+   "@timestamp": "2022-01-18T13:14:43.000000Z",
+   "location": "/var/log/auth.log",
+   "id": "1686444923.263247446"
+  }
+ },
+ {
+  "id": "ho-harrison-wazuh-service_stop",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "harrison_wazuh.json",
+   "line": 572241,
+   "windowAlerts": 4,
+   "why": "median alert in the labeled window"
+  },
+  "truth": {
+   "scenario": "harrison",
+   "phase": "service_stop"
+  },
+  "scenario": "harrison",
+  "record": {
+   "predecoder": {
+    "timestamp": "02/08/2022-09:15:00.826466"
+   },
+   "agent": {
+    "ip": "192.168.128.1",
+    "name": "wazuh-client",
+    "id": "27"
+   },
+   "manager": {
+    "name": "wazuh.manager"
+   },
+   "data": {
+    "srcip": "172.28.192.4",
+    "dstip": "172.28.255.254:53",
+    "id": "1:2027863:4"
+   },
+   "rule": {
+    "firedtimes": 666,
+    "mail": false,
+    "level": 6,
+    "description": "IDS event.",
+    "groups": [
+     "ids"
+    ],
+    "id": "20101"
+   },
+   "decoder": {
+    "parent": "snort",
+    "name": "snort"
+   },
+   "full_log": "02/08/2022-09:15:00.826466  [**] [1:2027863:4] ET INFO Observed DNS Query to .biz TLD [**] [Classification: Potentially Bad Traffic] [Priority: 2] {UDP} 172.28.192.4:46206 -> 172.28.255.254:53",
+   "input": {
+    "type": "log"
+   },
+   "@timestamp": "2022-02-08T09:15:00.826466Z",
+   "location": "/var/log/suricata/fast.log",
+   "id": "1687031959.313685771"
+  }
+ },
+ {
+  "id": "ho-santos-wazuh-dnsteal",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "santos_wazuh.json",
+   "line": 88374,
+   "windowAlerts": 831,
+   "why": "median alert in the labeled window"
+  },
+  "truth": {
+   "scenario": "santos",
+   "phase": "dnsteal"
+  },
+  "scenario": "santos",
+  "record": {
+   "predecoder": {
+    "hostname": "hayes-mail",
+    "program_name": "dovecot",
+    "timestamp": "Jan 16 07:30:45"
+   },
+   "agent": {
+    "ip": "10.229.2.25",
+    "name": "wazuh-client",
+    "id": "21"
+   },
+   "manager": {
+    "name": "wazuh.manager"
+   },
+   "rule": {
+    "mail": false,
+    "level": 3,
+    "pci_dss": [
+     "10.2.5"
+    ],
+    "hipaa": [
+     "164.312.b"
+    ],
+    "tsc": [
+     "CC6.8",
+     "CC7.2",
+     "CC7.3"
+    ],
+    "description": "Dovecot Authentication Success.",
+    "groups": [
+     "dovecot",
+     "authentication_success"
+    ],
+    "nist_800_53": [
+     "AU.14",
+     "AC.7"
+    ],
+    "gdpr": [
+     "IV_32.2"
+    ],
+    "firedtimes": 229,
+    "mitre": {
+     "technique": [
+      "Valid Accounts"
+     ],
+     "id": [
+      "T1078"
+     ],
+     "tactic": [
+      "Defense Evasion",
+      "Persistence",
+      "Privilege Escalation",
+      "Initial Access"
+     ]
+    },
+    "id": "9701",
+    "gpg13": [
+     "7.1",
+     "7.2"
+    ]
+   },
+   "decoder": {
+    "parent": "dovecot",
+    "name": "dovecot"
+   },
+   "full_log": "Jan 16 07:30:45 hayes-mail dovecot: imap-login: Login: user=<katy.martin>, method=PLAIN, rip=10.229.2.25, lip=10.229.2.25, mpid=26239, TLS, session=<716aA67VTtEK5QIZ>",
+   "input": {
+    "type": "log"
+   },
+   "@timestamp": "2022-01-16T07:30:45.000000Z",
+   "location": "/var/log/mail.log",
+   "id": "1687375231.34762105"
+  }
+ },
+ {
+  "id": "ho-wilson-aminer-webshell",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "wilson_aminer.json",
+   "line": 8785,
+   "windowAlerts": 2,
+   "why": "median AMiner alert in the labeled window"
+  },
+  "truth": {
+   "scenario": "wilson",
+   "phase": "webshell"
+  },
+  "scenario": "wilson",
+  "record": {
+   "AnalysisComponent": {
+    "AnalysisComponentIdentifier": 6,
+    "AnalysisComponentType": "EntropyDetector",
+    "AnalysisComponentName": "AMiner: High entropy in Apache Access request.",
+    "Message": "Value entropy anomaly detected",
+    "PersistenceFileName": "entropy_request",
+    "TrainingMode": false,
+    "AffectedLogAtomPaths": [
+     "/model/fm/request/request"
+    ],
+    "AffectedLogAtomValues": [
+     "/wp-content/uploads/2022/02/zpinqklqgo-1644232829.6164.php?[REDACTED]"
+    ],
+    "CriticalValue": 0.04495425833681316,
+    "ProbabilityThreshold": 0.05
+   },
+   "LogData": {
+    "RawLogData": [
+     "10.182.193.78 - - [07/Feb/2022:11:20:39 +0000] \"GET /wp-content/uploads/2022/02/zpinqklqgo-1644232829.6164.php?[REDACTED] HTTP/1.1\" 200 506731 \"-\" \"python-requests/2.27.1\""
+    ],
+    "Timestamps": [
+     1644232839
+    ],
+    "DetectionTimestamp": [
+     1644232839
+    ],
+    "LogLinesCount": 1,
+    "LogResources": [
+     "/var/log/apache2/intranet-access.log"
+    ]
+   },
+   "AMiner": {
+    "ID": "172.26.243.167"
+   }
+  }
+ },
+ {
+  "id": "ho-shaw-wazuh-outside",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "shaw_wazuh.json",
+   "line": 31287,
+   "windowAlerts": 62573,
+   "why": "median alert outside every labeled window"
+  },
+  "truth": {
+   "scenario": "shaw",
+   "phase": null
+  },
+  "scenario": "shaw",
+  "record": {
+   "agent": {
+    "ip": "172.27.180.4",
+    "name": "wazuh-client",
+    "id": "25"
+   },
+   "data": {
+    "srcip": "40.76.174.66",
+    "dstip": "10.70.32.4:57934",
+    "id": "1:2230003:1"
+   },
+   "rule": {
+    "firedtimes": 218,
+    "mail": false,
+    "level": 6,
+    "description": "IDS event.",
+    "groups": [
+     "ids"
+    ],
+    "id": "20101"
+   },
+   "full_log": "01/28/2022-09:44:06.114211  [**] [1:2230003:1] SURICATA TLS invalid handshake message [**] [Classification: Generic Protocol Command Decode] [Priority: 3] {TCP} 40.76.174.66:443 -> 10.70.32.4:57934",
+   "id": "1688057254.4429697",
+   "predecoder": {
+    "timestamp": "01/28/2022-09:44:06.114211"
+   },
+   "manager": {
+    "name": "wazuh.manager"
+   },
+   "decoder": {
+    "parent": "snort",
+    "name": "snort"
+   },
+   "input": {
+    "type": "log"
+   },
+   "@timestamp": "2022-01-28T09:44:06.114211Z",
+   "location": "/var/log/suricata/fast.log",
+   "GeoLocation": {
+    "city_name": "Washington",
+    "country_name": "United States",
+    "region_name": "Virginia",
+    "location": {
+     "lon": -78.1539,
+     "lat": 38.7095
+    }
+   }
+  }
+ },
+ {
+  "id": "ho-wardbeck-wazuh-outside",
+  "origin": {
+   "dataset": "AIT-ADS",
+   "file": "wardbeck_wazuh.json",
+   "line": 41085,
+   "windowAlerts": 82135,
+   "why": "median alert outside every labeled window"
+  },
+  "truth": {
+   "scenario": "wardbeck",
+   "phase": null
+  },
+  "scenario": "wardbeck",
+  "record": {
+   "predecoder": {
+    "hostname": "mail",
+    "program_name": "dovecot",
+    "timestamp": "Jan 21 10:57:47"
+   },
+   "agent": {
+    "ip": "10.132.56.171",
+    "name": "wazuh-client",
+    "id": "25"
+   },
+   "manager": {
+    "name": "wazuh.manager"
+   },
+   "rule": {
+    "mail": false,
+    "level": 3,
+    "pci_dss": [
+     "10.2.5"
+    ],
+    "hipaa": [
+     "164.312.b"
+    ],
+    "tsc": [
+     "CC6.8",
+     "CC7.2",
+     "CC7.3"
+    ],
+    "description": "Dovecot Authentication Success.",
+    "groups": [
+     "dovecot",
+     "authentication_success"
+    ],
+    "nist_800_53": [
+     "AU.14",
+     "AC.7"
+    ],
+    "gdpr": [
+     "IV_32.2"
+    ],
+    "firedtimes": 26,
+    "mitre": {
+     "technique": [
+      "Valid Accounts"
+     ],
+     "id": [
+      "T1078"
+     ],
+     "tactic": [
+      "Defense Evasion",
+      "Persistence",
+      "Privilege Escalation",
+      "Initial Access"
+     ]
+    },
+    "id": "9701",
+    "gpg13": [
+     "7.1",
+     "7.2"
+    ]
+   },
+   "decoder": {
+    "parent": "dovecot",
+    "name": "dovecot"
+   },
+   "full_log": "Jan 21 10:57:47 mail dovecot: imap-login: Login: user=<malcolm.allen>, method=PLAIN, rip=10.132.56.171, lip=10.132.56.171, mpid=10829, TLS, session=<MbA+fRXWeJMKhDir>",
+   "input": {
+    "type": "log"
+   },
+   "@timestamp": "2022-01-21T10:57:47.000000Z",
+   "location": "/var/log/mail.log",
+   "id": "1688584110.11026941"
+  }
+ }
+]
