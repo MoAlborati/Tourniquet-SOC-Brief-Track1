@@ -1,444 +1,265 @@
-import { groupIncidents } from './incidents.js';
+const queueEl = document.getElementById('queue');
+const queueStateEl = document.getElementById('queue-state');
+const queueCountEl = document.getElementById('queue-count');
+const briefingEl = document.getElementById('briefing');
+const scoreEl = document.getElementById('score');
+const pasteForm = document.getElementById('paste-form');
+const pasteText = document.getElementById('email-text');
+const pasteSubmit = document.getElementById('paste-submit');
+const pasteState = document.getElementById('paste-state');
 
-const queueEl = document.querySelector('#queue');
-const briefEl = document.querySelector('#brief');
-const scoreEl = document.querySelector('#score');
-const hintEl = document.querySelector('#model-hint');
-const emailOut = document.querySelector('#email-out');
+const DISPOSITION_TEXT = {
+  escalate: { label: 'Escalate', hint: 'Treat this as a real incident and hand it to a senior analyst now.' },
+  dismiss: { label: 'Dismiss', hint: 'Looks benign or expected. Close it with a short note.' },
+  review: { label: 'Needs a human', hint: 'Not clear-cut. A person should look before closing.' },
+};
 
 let rows = [];
-let filter = 'all';
-let selected = null;
-let modelReady = false;
+let openIndex = null;
 
-function el(tag, className, text) {
+function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text != null) node.textContent = text;
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value === undefined || value === null) continue;
+    if (key === 'class') node.className = value;
+    else node.setAttribute(key, value);
+  }
+  for (const child of children.flat()) {
+    if (child === null || child === undefined || child === false) continue;
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
   return node;
 }
 
-function sourceLabel(row) {
-  if (row.family === 'sentinel') return 'SentinelProxy';
-  if (row.family === 'email') return 'Mailbox';
-  if (row.source === 'suricata') return 'Suricata';
-  if (row.source === 'aminer') return 'AMiner';
-  return 'Wazuh';
+function dispositionKey(briefing) {
+  const raw = String(briefing?.disposition ?? '').toLowerCase();
+  if (raw.startsWith('esc')) return 'escalate';
+  if (raw.startsWith('dis') || raw === 'benign' || raw === 'close') return 'dismiss';
+  return 'review';
 }
 
-function when(row) {
-  if (!row.timestamp) return '';
-  return row.timestamp.replace('T', ' ').replace('.000Z', 'Z').slice(0, 19);
+function dispositionLabel(briefing) {
+  const key = dispositionKey(briefing);
+  return briefing?.disposition ? DISPOSITION_TEXT[key].label : 'Unknown';
 }
 
-const PRIORITY_ORDER = { P1: 0, P2: 1, P3: 2, P4: 3 };
-const BANDS = [
-  { id: 'red', label: 'Red' },
-  { id: 'yellow', label: 'Yellow' },
-  { id: 'green', label: 'Green' },
-];
-
-function bandIndex(row) {
-  const priority = row.briefing?.priority;
-  if (priority === 'P1') return 0;
-  if (priority === 'P2') return 1;
-  return 2;
+function phaseText(phase) {
+  return phase ? String(phase).replace(/_/g, ' ') : 'outside window';
 }
 
-// Red, then yellow, then green. P3 sits above P4 inside green. Sort is stable, so equal
-// priorities keep their current order.
-function sortQueue(list) {
-  return list
-    .map((row, index) => ({ row, index }))
-    .sort((a, b) => (bandIndex(a.row) - bandIndex(b.row))
-      || ((PRIORITY_ORDER[a.row.briefing?.priority] ?? 9) - (PRIORITY_ORDER[b.row.briefing?.priority] ?? 9))
-      || (a.index - b.index))
-    .map(({ row }) => row);
+function asList(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).map(String);
+  if (typeof value === 'string' && value.trim()) return [value.trim()];
+  return [];
 }
 
-async function load() {
-  const [health, queue, report] = await Promise.all([
-    fetch('/api/health').then((res) => res.json()),
-    fetch('/api/queue').then((res) => res.json()),
-    fetch('/api/eval').then((res) => res.json()),
-  ]);
-  modelReady = Boolean(health.model);
-  rows = sortQueue(queue);
-  hintEl.textContent = modelReady
-    ? `OpenRouter is on (${health.modelName || 'openrouter/free'}). Each alert is re-checked, and a rule verdict cannot be lowered.`
-    : 'Rules only. Add a free OpenRouter key as OPENROUTER_API_KEY in .env to re-check alerts.';
-  scoreEl.replaceChildren(
-    el('strong', null, `${report.disposition.correct}/${report.disposition.total}`),
-    el('span', null, `dispositions match the analyst key · phase ${report.phase.correct}/${report.phase.total} · needs-human recall ${report.needsHuman.recall}`),
-  );
-  if (!selected && rows[0]) selected = rows[0].id;
-  renderQueue();
-  const current = rows.find((row) => row.id === selected);
-  if (current) renderBrief(current);
+function whatToDo(briefing) {
+  const value = briefing?.whatToDo ?? briefing?.nextSteps ?? briefing?.action ?? briefing?.recommendation;
+  return asList(value);
 }
 
-// Shared decision contract: { verdict, priority, score, why[], decidedBy, tags, bullets }.
-// The backend is adding these to the SAME contract in parallel; until merged we
-// fall back to the existing briefing fields so the queue never breaks.
-const VERDICTS = new Set(['escalate', 'investigate', 'monitor', 'dismiss']);
-
-function verdictOf(briefing) {
-  const raw = String(briefing?.verdict || briefing?.disposition || '').toLowerCase();
-  return VERDICTS.has(raw) ? raw : 'monitor';
-}
-
-// Score 0-100. Use the backend score when present; otherwise derive a stable
-// value from priority so the gauge is always meaningful offline.
-const SCORE_BY_PRIORITY = { P1: 92, P2: 72, P3: 46, P4: 20 };
-function scoreOf(briefing) {
-  const s = briefing?.score;
-  if (typeof s === 'number' && Number.isFinite(s)) return Math.max(0, Math.min(100, Math.round(s)));
-  return SCORE_BY_PRIORITY[briefing?.priority] ?? 40;
-}
-
-// Who decided: rules-only / ai-reworded / ai-escalated / ai-overruled / unreviewed.
-function decidedByOf(briefing, model) {
-  if (briefing?.decidedBy) return String(briefing.decidedBy);
-  if (model?.status === 'model') {
-    if (model.guard === 'raised') return 'ai-escalated';
-    if (model.guard === 'disposition_floor') return 'ai-overruled';
-    return 'ai-reworded';
-  }
-  const status = briefing?.verification?.status;
-  if (status === 'unreviewed') return 'unreviewed';
-  return 'rules-only';
-}
-
-// Hashtag tags. Prefer backend `tags`; otherwise derive a small, bounded set
-// from fields we already have so the hashtags are always visible.
-function tagsOf(row, briefing, model) {
-  const fromBackend = briefing?.tags || row?.tags;
-  if (Array.isArray(fromBackend) && fromBackend.length) {
-    return fromBackend.map((t) => (typeof t === 'string' ? t : t.label)).filter(Boolean).slice(0, 10);
-  }
-  const tags = [];
-  const slug = (v) => String(v).trim().toLowerCase().replace(/[_\s]+/g, '-').replace(/[^a-z0-9.&:-]/g, '');
-  if (briefing?.activity) tags.push(`#${slug(briefing.activity)}`);
-  if (row?.phase) tags.push(`#AIT:${slug(row.phase)}`);
-  if (row?.vendorLevel != null && row.vendorLevel !== '') tags.push(`#vendor:${slug(row.vendorLevel)}`);
-  tags.push(`#${slug(decidedByOf(briefing, model))}`);
-  return tags.slice(0, 10);
-}
-
-function selectRow(row) {
-  selected = row.id;
-  renderQueue();
-  renderBrief(row);
-}
-
-function rowButton(row, model) {
-  const briefing = row.briefing;
-  const priority = briefing.priority || 'P4';
-  const verdict = verdictOf(briefing);
-  const score = scoreOf(briefing);
-  const button = el('button', `row ${priority}${row.id === selected ? ' on' : ''}`);
-  button.type = 'button';
-  button.setAttribute('aria-pressed', row.id === selected ? 'true' : 'false');
-
-  button.append(el('span', 'caret', '▸'));
-  button.append(el('span', 'card-title', briefing.headline));
-  button.append(el('span', `verdict ${verdict}`, verdict));
-  button.addEventListener('click', () => selectRow(row));
-  return button;
-}
-
-// A collapsed incident lives in the band of its STRONGEST member priority, so
-// correlating a quiet alert with a loud one can only ever raise where it sits,
-// never bury the loud one in a quieter lane.
-function bandIndexForPriority(priority) {
-  if (priority === 'P1') return 0;
-  if (priority === 'P2') return 1;
-  return 2;
-}
-
-function incidentWindowText(window) {
-  if (!window) return '';
-  const span = Math.round((window.endEpoch - window.startEpoch) / 60);
-  if (!Number.isFinite(span) || span <= 0) return 'same minute';
-  if (span < 60) return `within ${span} min`;
-  return `within ${Math.round(span / 60)} h`;
-}
-
-// Render two or more correlated alerts as one collapsible incident. The header
-// shows the shared host/actor, the time span, and the incident's verdict — the
-// highest among its members (computed in incidents.js, never lowered).
-function incidentBlock(incident) {
-  const box = el('details', `incident ${incident.priority}`);
-  if (incident.members.some((member) => member.id === selected)) box.open = true;
-  const summary = document.createElement('summary');
-  summary.append(el('span', `pri ${incident.priority}`, incident.priority));
-  const text = el('span');
-  text.append(el('strong', 'incident-count', `Incident · ${incident.size} related alerts`));
-  const meta = [
-    incident.host ? `host ${incident.host}` : '',
-    incident.actor && incident.actor !== incident.host ? `actor ${incident.actor}` : '',
-    incidentWindowText(incident.window),
-  ].filter(Boolean).join(' · ');
-  text.append(el('small', null, meta));
-  summary.append(text);
-  box.append(summary);
-  const list = el('div', 'incident-members');
-  for (const member of incident.members) list.append(rowButton(member));
-  box.append(list);
-  return box;
+function fmt(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (Array.isArray(value)) return value.length ? value.join(', ') : '—';
+  return String(value);
 }
 
 function renderQueue() {
   queueEl.replaceChildren();
-  const visible = rows.filter((row) => filter === 'all' || row.family === filter);
-  // Flat list grouped into the three severity sections (one bar, three sections).
-  const groups = BANDS.map((band) => ({ ...band, entries: [], alertCount: 0 }));
-  for (const row of visible) {
-    const band = groups[bandIndex(row)];
-    band.entries.push(row);
-    band.alertCount += 1;
-  }
-
-  const meter = el('div', 'meter');
-  meter.setAttribute('role', 'img');
-  meter.setAttribute('aria-label', groups.map((group) => `${group.alertCount} ${group.label.toLowerCase()}`).join(', '));
-  for (const group of groups) {
-    const seg = el('div', `meter-seg ${group.id}${group.alertCount ? '' : ' empty'}`, group.alertCount ? String(group.alertCount) : '');
-    seg.style.flexGrow = String(group.alertCount);
-    seg.title = `${group.alertCount} ${group.label.toLowerCase()}`;
-    meter.append(seg);
-  }
-
-  const lanes = el('div', 'lanes');
-  for (const group of groups) {
-    const lane = el('section', `lane ${group.id}`);
-    lane.setAttribute('aria-label', `${group.label} alerts`);
-    const head = el('div', 'lane-head');
-    head.append(el('span', null, group.label));
-    head.append(el('span', 'count', String(group.alertCount)));
-    lane.append(head);
-    const list = el('div', 'lane-list');
-    if (!group.entries.length) list.append(el('p', 'empty', 'None'));
-    else for (const entry of group.entries) {
-      list.append(rowButton(entry));
-    }
-    lane.append(list);
-    lanes.append(lane);
-  }
-  queueEl.append(meter, lanes);
-  queueEl.querySelector('.row.on')?.scrollIntoView({ block: 'nearest' });
-}
-
-function renderBrief(row, { model } = {}) {
-  briefEl.replaceChildren();
-  const kicker = el('div', 'kicker');
-  const verdict = verdictOf(row.briefing);
-  const priority = row.briefing.priority || 'P4';
-  const score = scoreOf(row.briefing);
-  kicker.append(el('span', `verdict ${verdict}`, verdict));
-  kicker.append(el('span', `pchip ${priority}`, priority));
-  const scoreWrap = el('div', 'score-wrap');
-  scoreWrap.append(el('span', 'score-num', String(score)));
-  const bar = el('div', `score-bar ${priority}`);
-  const fill = el('i');
-  fill.style.width = `${score}%`;
-  bar.append(fill);
-  bar.setAttribute('role', 'img');
-  bar.setAttribute('aria-label', `threat score ${score} of 100`);
-  scoreWrap.append(bar);
-  kicker.append(scoreWrap);
-  kicker.append(el('span', 'tag', sourceLabel(row)));
-  kicker.append(el('span', 'tag', row.briefing.activity.replaceAll('_', ' ')));
-  if (model?.status) {
-    const label = {
-      agreed: 'model agreed',
-      raised: 'model raised',
-      disposition_floor: 'rule held',
-      model_decided: 'model classified',
-    }[model.guard] || (model.status === 'model' ? 'model checked' : model.status);
-    kicker.append(el('span', 'tag', label));
-  }
-  briefEl.append(kicker);
-  if (row.briefing.verification?.note) {
-    briefEl.append(el('p', 'meta', row.briefing.verification.note));
-  }
-  briefEl.append(el('h2', null, row.briefing.headline));
-  briefEl.append(el('p', 'summary', row.briefing.summary));
-  const action = el('div', 'do');
-  action.append(el('span', null, 'What to do'));
-  action.append(el('p', null, row.briefing.whatToDo));
-  briefEl.append(action);
-  renderTeach(briefEl, row.briefing, model);
-  briefEl.append(el('h3', null, 'Why this, and not a quieter label'));
-  const list = document.createElement('ul');
-  for (const reason of row.briefing.why) list.append(el('li', null, reason));
-  briefEl.append(list);
-  if (row.briefing.phaseNote) briefEl.append(el('p', 'meta', row.briefing.phaseNote));
-  if (row.briefing.relatedNote) briefEl.append(el('p', 'meta', row.briefing.relatedNote));
-  const facts = [
-    row.ruleId ? `Rule ${row.ruleId}` : '',
-    row.vendorLevel != null && row.vendorLevel !== '' ? `Vendor level ${row.vendorLevel}` : '',
-    row.host ? `Host ${row.host}` : '',
-    row.src ? `Source ${row.src}` : '',
-  ].filter(Boolean).join(' · ');
-  if (facts) briefEl.append(el('p', 'meta', facts));
-
-  if (modelReady && !model && row.id && !asked.has(row.id)) {
-    asked.add(row.id);
-    briefEl.append(el('p', 'meta', 'Re-checking this verdict with the model…'));
-    askModel(row);
-  }
-
-  const actions = el('div', 'actions');
-  const ask = el('button', 'ask', modelReady ? 'Re-check with model' : 'Model key not set');
-  ask.type = 'button';
-  ask.disabled = !modelReady;
-  ask.addEventListener('click', () => askModel(row));
-  actions.append(ask);
-  briefEl.append(actions);
-
-  const prompts = document.createElement('details');
-  const summary = document.createElement('summary');
-  summary.textContent = 'Prompt chain';
-  prompts.append(summary);
-  prompts.addEventListener('toggle', async () => {
-    if (!prompts.open || prompts.dataset.loaded) return;
-    prompts.dataset.loaded = '1';
-    const payload = await fetch(`/api/prompts/${encodeURIComponent(row.id)}`).then((res) => res.json());
-    for (const name of ['summarize', 'triage', 'verify', 'cover', 'explain']) {
-      prompts.append(el('h3', null, name));
-      prompts.append(el('pre', null, `${payload.prompts[name].system}\n\n${payload.prompts[name].user}`));
-    }
-  });
-  briefEl.append(prompts);
-
-  const raw = document.createElement('details');
-  const rawSummary = document.createElement('summary');
-  rawSummary.textContent = 'Alert text';
-  raw.append(rawSummary);
-  raw.addEventListener('toggle', async () => {
-    if (!raw.open || raw.dataset.loaded) return;
-    raw.dataset.loaded = '1';
-    const payload = await fetch(`/api/alert/${encodeURIComponent(row.id)}`).then((res) => res.json());
-    raw.append(el('pre', null, payload.text || ''));
-  });
-  briefEl.append(raw);
-}
-
-const asked = new Set();
-
-function renderTeach(parent, briefing, model) {
-  const lesson = model?.guard === 'model_decided' && briefing.explain
-    ? briefing.explain
-    : (briefing.lesson || briefing.explain);
-  if (lesson) {
-    parent.append(el('h3', null, 'What this threat is'));
-    parent.append(el('p', 'lesson', lesson));
-  }
-  const evidence = Array.isArray(briefing.evidence) ? briefing.evidence : [];
-  if (!evidence.length) return;
-  parent.append(el('h3', null, 'What in the alert decided this'));
-  const list = document.createElement('ul');
-  list.className = 'evidence';
-  for (const item of evidence) {
-    const row = document.createElement('li');
-    row.append(el('span', 'field', item.field));
-    const quote = document.createElement('q');
-    quote.textContent = item.excerpt;
-    row.append(quote);
-    list.append(row);
-  }
-  parent.append(list);
-}
-
-async function askModel(row) {
-  const response = await fetch('/api/triage', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ id: row.id }),
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    briefEl.append(el('p', 'meta', payload.error || 'The model call failed.'));
+  queueCountEl.textContent = rows.length ? `${rows.length} alerts` : '';
+  if (!rows.length) {
+    queueStateEl.hidden = false;
+    queueStateEl.className = 'state';
+    queueStateEl.textContent = 'The queue is empty. No alerts to triage right now.';
     return;
   }
-  const next = { ...row, briefing: payload.briefing };
-  const index = rows.findIndex((item) => item.id === row.id);
-  if (index >= 0) rows[index] = next;
-  rows = sortQueue(rows);
-  renderQueue();
-  renderBrief(next, { model: payload.model });
+  queueStateEl.hidden = true;
+  rows.forEach((row, index) => {
+    const key = dispositionKey(row.briefing);
+    const open = index === openIndex;
+    const item = el('li', { class: key, 'data-index': String(index) },
+      el('button', {
+        class: 'alert-toggle',
+        type: 'button',
+        'aria-expanded': open ? 'true' : 'false',
+      },
+        el('span', { class: 'chevron', 'aria-hidden': 'true' }, open ? '▾' : '▸'),
+        el('span', { class: 'row-title' }, row.title || row.briefing?.headline || row.id),
+        el('span', { class: `tag ${key}` }, dispositionLabel(row.briefing)),
+      ),
+    );
+    item.querySelector('button').addEventListener('click', () => select(index));
+    item.querySelector('button').addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowDown') { event.preventDefault(); focusRow(index + 1); }
+      if (event.key === 'ArrowUp') { event.preventDefault(); focusRow(index - 1); }
+    });
+    queueEl.append(item);
+  });
 }
 
-document.querySelectorAll('.chip').forEach((chip) => {
-  chip.addEventListener('click', () => {
-    filter = chip.dataset.filter;
-    document.querySelectorAll('.chip').forEach((item) => item.classList.toggle('on', item === chip));
+function focusRow(index) {
+  const item = queueEl.children[Math.max(0, Math.min(rows.length - 1, index))];
+  const button = item?.querySelector('button');
+  if (button) button.focus();
+}
+
+function showClosed() {
+  briefingEl.replaceChildren(el('p', { class: 'state' }, 'Open an alert to read its briefing.'));
+}
+
+function select(index) {
+  if (openIndex === index) {
+    openIndex = null;
     renderQueue();
-  });
-});
-
-document.querySelector('#email-go').addEventListener('click', async () => {
-  emailOut.replaceChildren(el('p', 'meta', 'Reading…'));
-  const response = await fetch('/api/triage', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ emailText: document.querySelector('#email-text').value }),
-  });
-  const payload = await response.json();
-  emailOut.replaceChildren();
-  if (!response.ok) {
-    emailOut.append(el('p', null, payload.error || 'Could not read that message.'));
+    showClosed();
     return;
   }
-  const row = {
-    id: payload.id,
-    source: payload.source,
-    family: payload.family,
-    scenario: payload.scenario || null,
-    phase: payload.phase || null,
-    timestamp: payload.timestamp || null,
-    title: payload.title,
-    host: payload.host || null,
-    src: payload.src || null,
-    dst: payload.dst || null,
-    ruleId: payload.ruleId || payload.briefing.ruleId || null,
-    vendorLevel: payload.vendorLevel ?? null,
-    groups: payload.groups || [],
-    relatedCount: payload.relatedCount || 0,
-    briefing: payload.briefing,
-  };
-  if (filter !== 'all' && filter !== 'email') {
-    filter = 'all';
-    document.querySelectorAll('.chip').forEach((item) => item.classList.toggle('on', item.dataset.filter === 'all'));
-  }
-  rows.unshift(row);
-  rows = sortQueue(rows);
-  selected = row.id;
+  openIndex = index;
   renderQueue();
-  renderBrief(row, { model: payload.model });
-  emailOut.append(el('p', 'meta', 'Added to the queue.'));
-});
+  renderBriefing(rows[index].briefing, rows[index]);
+}
 
-// Keyboard nav: ArrowUp/ArrowDown move the selection through the visible queue,
-// honoring the current band sort and filter.
-document.addEventListener('keydown', (event) => {
-  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-  const tag = document.activeElement?.tagName;
-  if (tag === 'TEXTAREA' || tag === 'INPUT') return;
-  const visible = sortQueue(rows.filter((row) => filter === 'all' || row.family === filter));
-  if (!visible.length) return;
+function modelNote(model) {
+  if (!model) return null;
+  if (model.status === 'skipped' || model.status === undefined) {
+    return 'Written by the built-in rules. No language model ran for this briefing.';
+  }
+  if (model.status === 'ok') {
+    return `Rules first, then wording refined by ${model.name || 'a language model'}.`;
+  }
+  return `A language model was configured but did not finish (${model.status}). Showing the rule-based briefing.`;
+}
+
+function renderBriefing(briefing, context = {}) {
+  if (!briefing) {
+    briefingEl.replaceChildren(el('p', { class: 'state error' }, 'No briefing came back for this item.'));
+    return;
+  }
+  const key = dispositionKey(briefing);
+  const disp = DISPOSITION_TEXT[key];
+  const why = asList(briefing.why);
+  const todo = whatToDo(briefing);
+  const facts = [
+    ['Host', context.host ?? briefing.host],
+    ['Source', context.src ?? briefing.src],
+    ['Destination', context.dst ?? briefing.dst],
+    ['Rule id', context.ruleId ?? briefing.ruleId],
+    ['Priority', briefing.priority],
+    ['Attack phase', phaseText(context.phase ?? briefing.phase)],
+    ['Related alerts', context.relatedCount ?? briefing.relatedCount],
+    ['When', context.timestamp ?? briefing.timestamp],
+  ];
+
+  const folds = [];
+  if (briefing.summary) {
+    folds.push(fold('Summary', el('p', { class: 'summary' }, briefing.summary)));
+  }
+  if (why.length) {
+    folds.push(fold('Why we think so', el('ul', { class: 'why' }, why.map((line) => el('li', {}, line)))));
+  }
+  if (todo.length) {
+    const body = todo.length === 1
+      ? el('p', { class: 'todo' }, todo[0])
+      : el('ol', { class: 'todo' }, todo.map((line) => el('li', {}, line)));
+    folds.push(fold('What to do', body));
+  }
+  folds.push(fold('Details', el('dl', { class: 'facts' }, facts.map(([label, value]) => el('div', {}, el('dt', {}, label), el('dd', {}, fmt(value)))))));
+  const note = modelNote(context.model ?? briefing.model);
+  if (note) folds.push(fold('How this was written', el('p', { class: 'model-note' }, note)));
+
+  briefingEl.replaceChildren(
+    el('div', { class: `verdict ${key}` },
+      el('span', { class: 'big' }, briefing.disposition ? disp.label : 'Unknown'),
+      el('span', { class: 'hint' }, disp.hint),
+    ),
+    el('h2', { class: 'headline' }, briefing.headline || context.title || 'Untitled alert'),
+    ...folds,
+  );
+}
+
+function fold(title, body) {
+  return el('details', { class: 'fold' },
+    el('summary', {}, title),
+    body,
+  );
+}
+
+function ratio(part) {
+  if (!part || typeof part !== 'object') return '—';
+  const correct = part.correct ?? part.hits;
+  const total = part.total ?? part.count;
+  return correct === undefined || total === undefined ? '—' : `${correct}/${total}`;
+}
+
+function renderScore(evalResult) {
+  const recall = evalResult?.needsHuman?.recall;
+  const recallText = typeof recall === 'number' ? `${Math.round(recall * 100)}%` : '—';
+  scoreEl.replaceChildren(
+    'Phase ', el('strong', {}, ratio(evalResult?.phase)),
+    ' · Disposition ', el('strong', {}, ratio(evalResult?.disposition)),
+    ' · Needs-human recall ', el('strong', {}, recallText),
+  );
+}
+
+async function getJson(path) {
+  const res = await fetch(path, { headers: { accept: 'application/json' } });
+  if (!res.ok) throw new Error(`${path} returned HTTP ${res.status}`);
+  return res.json();
+}
+
+async function loadQueue() {
+  try {
+    const data = await getJson('/api/queue');
+    rows = Array.isArray(data) ? data : [];
+    openIndex = null;
+    renderQueue();
+    showClosed();
+  } catch (err) {
+    rows = [];
+    queueEl.replaceChildren();
+    queueStateEl.hidden = false;
+    queueStateEl.className = 'state error';
+    queueStateEl.textContent = `Could not load the alert queue. Is the server running? (${err.message})`;
+    briefingEl.replaceChildren(el('p', { class: 'state' }, 'No briefing to show until the queue loads. You can still check a pasted email below.'));
+  }
+}
+
+async function loadScore() {
+  try {
+    renderScore(await getJson('/api/eval'));
+  } catch {
+    scoreEl.textContent = 'Score unavailable.';
+  }
+}
+
+pasteForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const current = visible.findIndex((row) => row.id === selected);
-  const delta = event.key === 'ArrowDown' ? 1 : -1;
-  const next = visible[Math.max(0, Math.min(visible.length - 1, (current < 0 ? 0 : current + delta)))];
-  if (next) {
-    selectRow(next);
-    queueEl.querySelector('.row.on')?.scrollIntoView({ block: 'nearest' });
-    queueEl.querySelector('.row.on')?.focus();
+  const emailText = pasteText.value;
+  if (!emailText.trim()) {
+    pasteState.textContent = 'Paste an email first.';
+    return;
+  }
+  pasteSubmit.disabled = true;
+  pasteState.textContent = 'Reading the email…';
+  try {
+    const res = await fetch('/api/triage', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ emailText }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    openIndex = null;
+    renderQueue();
+    renderBriefing(data.briefing, { model: data.model ?? null, title: 'Pasted email' });
+    pasteState.textContent = 'Briefing shown above.';
+    briefingEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    pasteState.textContent = `Could not brief this email: ${err.message}`;
+  } finally {
+    pasteSubmit.disabled = false;
   }
 });
 
-load().catch((error) => {
-  briefEl.append(el('p', null, `The queue did not load. ${error.message}`));
-});
+loadQueue();
+loadScore();
